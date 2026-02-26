@@ -1,56 +1,82 @@
 import './style.css'
-import { Shell } from '@/app/shell/shell'
-import { Router } from '@/app/router'
-import { RendererHost } from '@/core/renderer/RendererHost'
-import { LessonHost } from '@/core/scene-host/LessonHost'
-import { lessons } from '@/lessons'
+import { Shell } from '@/app/Shell'
+import { SemanticGraph } from '@/semantic/model/SemanticGraph'
+import { TimelineRuntime } from '@/timeline/runtime/TimelineRuntime'
+import { StepTrack } from '@/timeline/runtime/StepTrack'
+import { EventTrack } from '@/timeline/runtime/EventTrack'
 
 const appRoot = document.querySelector<HTMLDivElement>('#app')
-if (!appRoot) {
-  throw new Error('Missing #app root element')
-}
+if (!appRoot) throw new Error('Missing #app root element')
 
 const shell = new Shell(appRoot)
-const rendererHost = new RendererHost(shell.getCanvas())
-const lessonHost = new LessonHost(rendererHost, shell.getUI())
 
-const availableLessons = lessons
-const defaultLessonId = availableLessons[0]?.id ?? 'vector-dot'
-let router: Router
-let loadToken = 0
+// ── Graph ─────────────────────────────────────────────────────────────────
+const graph = new SemanticGraph()
+const nodes = ['A', 'B', 'C', 'D', 'E', 'F']
+nodes.forEach((id, i) => graph.addEntity({ id, type: 'node', props: { label: id, value: i + 1 } }))
 
-const loadLesson = async (id: string) => {
-  const entry = availableLessons.find((l) => l.id === id) ?? availableLessons[0]
-  if (!entry) return
-  const token = ++loadToken
-  shell.markActiveLesson(entry.id)
-  shell.setDoc(entry.doc)
-  try {
-    await lessonHost.mount(entry.load)
-  } catch (error) {
-    console.error(`Failed to load lesson "${id}"`, error)
-    shell.setDoc('Lesson 加载失败，请检查控制台日志。')
-  }
-  if (token !== loadToken) return
-}
-
-const handleLessonClick = (id: string) => {
-  if (router) router.navigate(id)
-}
-
-shell.setLessons(
-  availableLessons.map((lesson) => ({
-    id: lesson.id,
-    title: lesson.title,
-    tags: lesson.tags,
-  })),
-  handleLessonClick,
+const edges: [string, string][] = [
+  ['A', 'B'], ['A', 'C'],
+  ['B', 'D'], ['B', 'E'],
+  ['C', 'F'],
+]
+edges.forEach(([s, t], i) =>
+  graph.addRelation({ id: `r${i}`, type: 'link', sourceId: s, targetId: t, props: {} })
 )
 
-router = new Router((id) => {
-  loadLesson(id)
-}, defaultLessonId)
+shell.loadGraph(graph)
 
-router.init()
-rendererHost.setUpdate((dt) => lessonHost.update(dt))
-rendererHost.start()
+// ── BFS order: A B C D E F ────────────────────────────────────────────────
+const bfsOrder = ['A', 'B', 'C', 'D', 'E', 'F']
+const STEP_DUR = 1.2  // seconds per step
+
+const runtime = new TimelineRuntime({
+  duration: bfsOrder.length * STEP_DUR,
+  loop: false,
+  speed: 1,
+})
+
+// StepTrack — one keyframe per BFS step
+const stepTrack = new StepTrack('steps')
+bfsOrder.forEach((nodeId, i) => {
+  stepTrack.addKeyframe({
+    time: i * STEP_DUR,
+    value: { index: i, label: nodeId, payload: { nodeId } },
+  })
+})
+runtime.addTrack(stepTrack)
+
+// EventTrack — fires "visit" event at each step
+const eventTrack = new EventTrack('bfs-events')
+bfsOrder.forEach((nodeId, i) => {
+  eventTrack.addKeyframe({
+    time: i * STEP_DUR,
+    value: { name: 'visit', payload: { nodeId, step: i } },
+  })
+})
+runtime.addTrack(eventTrack)
+
+// Color visited nodes in 3D view
+const VISITED_COLOR = 0x00e5ff   // cyan
+const DEFAULT_COLOR = 0x4488ff   // original blue
+
+runtime.on({
+  type: 'event',
+  handler: (evt) => {
+    if (evt.name === 'visit') {
+      const { nodeId, step } = evt.payload as { nodeId: string; step: number }
+      console.log(`[BFS] step ${step + 1}: visit ${nodeId}`)
+      shell.getView3D()?.setNodeColor(nodeId, VISITED_COLOR)
+    }
+  },
+})
+
+// Reset colors on loop / seek back to start
+runtime.on({
+  type: 'end',
+  handler: () => {
+    console.log('[BFS] traversal complete')
+  },
+})
+
+shell.setTimeline(runtime)

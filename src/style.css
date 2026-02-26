@@ -225,3 +225,56 @@ canvas#viewer {
   background: #1e2434;
   border-radius: 8px;
 }
+
+.inspector-root {
+  padding: 14px;
+  height: 100%;
+  overflow-y: auto;
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  color: #e7ecf5;
+}
+
+.inspector-empty {
+  color: #9aa7c4;
+  font-size: 13px;
+  margin: 0;
+}
+
+.inspector-card {
+  border: 1px solid #1f2436;
+  background: #111522;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.inspector-id {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.inspector-type {
+  color: #7db3ff;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.prop-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.prop-key {
+  color: #9aa7c4;
+  padding: 3px 8px 3px 0;
+  white-space: nowrap;
+}
+
+.prop-val {
+  color: #5bd5a1;
+  font-variant-numeric: tabular-nums;
+}

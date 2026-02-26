@@ -1,0 +1,83 @@
+import * as THREE from 'three'
+import { BaseRelationGizmo } from './BaseRelationGizmo'
+import type { SemanticRelation } from '@/semantic/model/SemanticGraph'
+
+/**
+ * MeasureDistance: dashed line between two points with a distance label at midpoint.
+ */
+export class MeasureDistanceGizmo extends BaseRelationGizmo {
+  private line!: THREE.Line
+  private sprite!: THREE.Sprite
+  private canvas!: HTMLCanvasElement
+  private ctx!: CanvasRenderingContext2D
+  private normalColor = new THREE.Color(0x00ccff)
+  private selectedColor = new THREE.Color(0xff8800)
+
+  build(relation: SemanticRelation, sourcePos: THREE.Vector3, targetPos: THREE.Vector3): THREE.Object3D[] {
+    // Dashed line
+    const points = [sourcePos.clone(), targetPos.clone()]
+    const geo = new THREE.BufferGeometry().setFromPoints(points)
+    const mat = new THREE.LineDashedMaterial({
+      color: this.normalColor,
+      dashSize: 0.15,
+      gapSize: 0.08,
+    })
+    this.line = new THREE.Line(geo, mat)
+    this.line.computeLineDistances()
+    this.line.userData['gizmoId'] = this.id
+
+    // Distance label
+    this.canvas = document.createElement('canvas')
+    this.canvas.width = 256
+    this.canvas.height = 64
+    this.ctx = this.canvas.getContext('2d')!
+    const dist = sourcePos.distanceTo(targetPos)
+    this.drawLabel(dist, false, relation)
+
+    const texture = new THREE.CanvasTexture(this.canvas)
+    const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false })
+    this.sprite = new THREE.Sprite(spriteMat)
+    this.sprite.scale.set(0.9, 0.22, 1)
+    this.sprite.position.copy(sourcePos).lerp(targetPos, 0.5).add(new THREE.Vector3(0, 0.18, 0))
+    this.sprite.userData['gizmoId'] = this.id
+
+    this.objects = [this.line, this.sprite]
+    return this.objects
+  }
+
+  update(relation: SemanticRelation, sourcePos: THREE.Vector3, targetPos: THREE.Vector3): void {
+    const positions = this.line.geometry.attributes['position'] as THREE.BufferAttribute
+    positions.setXYZ(0, sourcePos.x, sourcePos.y, sourcePos.z)
+    positions.setXYZ(1, targetPos.x, targetPos.y, targetPos.z)
+    positions.needsUpdate = true
+    this.line.computeLineDistances()
+
+    const dist = sourcePos.distanceTo(targetPos)
+    this.drawLabel(dist, this.selected, relation)
+    ;(this.sprite.material as THREE.SpriteMaterial).map!.needsUpdate = true
+    this.sprite.position.copy(sourcePos).lerp(targetPos, 0.5).add(new THREE.Vector3(0, 0.18, 0))
+  }
+
+  protected onSelectionChange(selected: boolean): void {
+    ;(this.line.material as THREE.LineDashedMaterial).color.copy(
+      selected ? this.selectedColor : this.normalColor
+    )
+  }
+
+  private drawLabel(dist: number, selected: boolean, relation: SemanticRelation): void {
+    const { ctx, canvas } = this
+    const unit = String((relation.props as Record<string, unknown>).unit ?? '')
+    const text = `${dist.toFixed(2)}${unit ? ' ' + unit : ''}`
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = selected ? '#ff8800' : '#00ccff'
+    ctx.font = 'bold 26px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2)
+  }
+
+  dispose(): void {
+    ;(this.sprite.material as THREE.SpriteMaterial).map?.dispose()
+    super.dispose()
+  }
+}
