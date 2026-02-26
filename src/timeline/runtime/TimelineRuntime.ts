@@ -1,6 +1,9 @@
 import { Track } from './Track'
 import { EventTrack, type TimelineEvent } from './EventTrack'
 import { StepTrack } from './StepTrack'
+import { PropertyTrack } from './PropertyTrack'
+import { StateTrack } from './StateTrack'
+import { TrackEvaluator, type TrackEvaluationResult } from '@/timeline/tracks/TrackEvaluator'
 
 export type PlayState = 'idle' | 'playing' | 'paused'
 
@@ -16,6 +19,23 @@ export interface TimelineRuntimeOptions {
   loop?: boolean
   speed?: number
   markers?: TimelineMarker[]
+}
+
+export interface SerializedTrack {
+  id: string
+  type: 'property' | 'event' | 'step' | 'state'
+  targetId?: string
+  propName?: string
+  processId?: string
+  keyframes: Array<{ time: number; value: unknown; easing?: string }>
+}
+
+export interface SerializedTimeline {
+  duration: number
+  speed: number
+  loop: boolean
+  markers: TimelineMarker[]
+  tracks: SerializedTrack[]
 }
 
 export type TimelineListener =
@@ -76,6 +96,87 @@ export class TimelineRuntime {
 
   getTrack<T extends Track>(id: string): T | undefined {
     return this.tracks.get(id) as T | undefined
+  }
+
+  evaluateAt(time: number = this._time): TrackEvaluationResult {
+    return TrackEvaluator.evaluateAtTime(this.tracks.values(), time)
+  }
+
+  clearTracks(): void {
+    this.tracks.clear()
+  }
+
+  serialize(): SerializedTimeline {
+    const tracks: SerializedTrack[] = []
+    this.tracks.forEach(track => {
+      if (track instanceof PropertyTrack) {
+        tracks.push({
+          id: track.id,
+          type: 'property',
+          targetId: track.targetId,
+          propName: track.propName,
+          keyframes: track.getKeyframes().map(kf => ({
+            time: kf.time,
+            value: this.cloneValue(kf.value),
+            easing: kf.easing,
+          })),
+        })
+      } else if (track instanceof EventTrack) {
+        tracks.push({
+          id: track.id,
+          type: 'event',
+          processId: track.processId,
+          keyframes: track.getKeyframes().map(kf => ({
+            time: kf.time,
+            value: this.cloneValue(kf.value),
+            easing: kf.easing,
+          })),
+        })
+      } else if (track instanceof StepTrack) {
+        tracks.push({
+          id: track.id,
+          type: 'step',
+          processId: track.processId,
+          keyframes: track.getKeyframes().map(kf => ({
+            time: kf.time,
+            value: this.cloneValue(kf.value),
+            easing: kf.easing,
+          })),
+        })
+      } else if (track instanceof StateTrack) {
+        tracks.push({
+          id: track.id,
+          type: 'state',
+          processId: track.processId,
+          keyframes: track.getKeyframes().map(kf => ({
+            time: kf.time,
+            value: this.cloneValue(kf.value),
+            easing: kf.easing,
+          })),
+        })
+      }
+    })
+
+    return {
+      duration: this.duration,
+      speed: this.speed,
+      loop: this.loop,
+      markers: this._markers.map(m => ({ ...m })),
+      tracks,
+    }
+  }
+
+  applySerialized(data: SerializedTimeline): void {
+    this.speed = data.speed
+    this._markers = data.markers.map(m => ({ ...m })).sort((a, b) => a.time - b.time)
+    this.clearTracks()
+
+    for (const trackData of data.tracks) {
+      const track = this.createTrackFromSerialized(trackData)
+      if (!track) continue
+      this.addTrack(track)
+    }
+    this.seek(0)
   }
 
   // ── Playback controls ─────────────────────────────────────────────────────
@@ -175,8 +276,11 @@ export class TimelineRuntime {
   private _drainEvents(): void {
     this.tracks.forEach(track => {
       if (track instanceof EventTrack) {
-        const evt = track.evaluate(this._time)
-        if (evt) this.eventHandlers.forEach(h => h(evt))
+        while (true) {
+          const evt = track.evaluate(this._time)
+          if (!evt) break
+          this.eventHandlers.forEach(h => h(evt))
+        }
       }
     })
   }
@@ -222,6 +326,93 @@ export class TimelineRuntime {
       case 'event': this.eventHandlers = this.eventHandlers.filter(h => h !== listener.handler); break
       case 'stateChange': this.stateHandlers = this.stateHandlers.filter(h => h !== listener.handler); break
       case 'end': this.endHandlers = this.endHandlers.filter(h => h !== listener.handler); break
+    }
+  }
+
+  private createTrackFromSerialized(data: SerializedTrack): Track | null {
+    switch (data.type) {
+      case 'property': {
+        const targetId = data.targetId ?? ''
+        const propName = data.propName ?? ''
+        const track = new PropertyTrack(data.id, targetId, propName)
+        data.keyframes.forEach(kf => {
+          track.addKeyframe({
+            time: kf.time,
+            value: (kf.value as number | string) ?? 0,
+            easing: this.toPropertyEasing(kf.easing),
+          })
+        })
+        return track
+      }
+      case 'event': {
+        const track = new EventTrack(data.id, data.processId)
+        data.keyframes.forEach(kf => {
+          track.addKeyframe({
+            time: kf.time,
+            value: this.toTimelineEvent(this.cloneValue(kf.value)),
+          })
+        })
+        return track
+      }
+      case 'step': {
+        const track = new StepTrack(data.id, data.processId)
+        data.keyframes.forEach(kf => track.addKeyframe({ time: kf.time, value: this.cloneValue(kf.value) as never }))
+        return track
+      }
+      case 'state': {
+        const track = new StateTrack(data.id, data.processId)
+        data.keyframes.forEach(kf => track.addKeyframe({ time: kf.time, value: this.cloneValue(kf.value) as never }))
+        return track
+      }
+      default:
+        return null
+    }
+  }
+
+  private toPropertyEasing(raw: string | undefined): 'linear' | 'step' | 'ease-in' | 'ease-out' | 'ease-in-out' {
+    switch (raw) {
+      case 'step':
+      case 'ease-in':
+      case 'ease-out':
+      case 'ease-in-out':
+      case 'linear':
+        return raw
+      default:
+        return 'linear'
+    }
+  }
+
+  private toTimelineEvent(value: unknown): TimelineEvent {
+    if (typeof value === 'object' && value !== null && 'name' in value) {
+      const candidate = value as { name?: unknown; payload?: unknown }
+      if (typeof candidate.name === 'string') {
+        return {
+          name: candidate.name,
+          payload: candidate.payload,
+        }
+      }
+    }
+    return {
+      name: 'event',
+      payload: value,
+    }
+  }
+
+  private cloneValue<T>(value: T): T {
+    if (value === null || value === undefined) return value
+    if (typeof value !== 'object') return value
+
+    if (typeof structuredClone === 'function') {
+      try {
+        return structuredClone(value)
+      } catch {
+        // fall through
+      }
+    }
+    try {
+      return JSON.parse(JSON.stringify(value)) as T
+    } catch {
+      return value
     }
   }
 }

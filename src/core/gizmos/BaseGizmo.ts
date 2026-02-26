@@ -1,7 +1,8 @@
 import type * as THREE from 'three'
 import type { SemanticEntity } from '@/semantic/model/SemanticGraph'
+import type { IGizmo } from './IGizmo'
 
-export abstract class BaseGizmo {
+export abstract class BaseGizmo implements IGizmo {
   readonly id: string
   protected selected = false
   protected objects: THREE.Object3D[] = []

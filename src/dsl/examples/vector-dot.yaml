@@ -1,0 +1,47 @@
+meta:
+  id: vector-dot
+  title: Vector Dot Projection
+  tags: [geometry, vector, projection]
+  level: beginner
+  order: 1
+
+entities:
+  - id: vectorA
+    type: arrow
+    anchor: center
+    direction: [3, 2, 0]
+    color: "#0088ff"
+    label: A
+  - id: vectorB
+    type: arrow
+    anchor: center
+    direction: [2, -1, 0]
+    color: "#ff8800"
+    label: B
+
+relations:
+  - id: angleAB
+    type: measureAngle
+    vectorA: vectorA
+    vectorB: vectorB
+
+timeline:
+  duration: 10
+  loop: false
+  speed: 1
+  markers:
+    - time: 0
+      label: Init
+    - time: 5
+      label: Projection
+  tracks:
+    - id: rotateA
+      type: property
+      target: vectorA
+      property: rotation.z
+      keyframes:
+        - time: 0
+          value: 0
+        - time: 8
+          value: 6.28
+          easing: ease-in-out

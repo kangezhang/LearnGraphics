@@ -1,12 +1,13 @@
 import * as THREE from 'three'
 import type { SemanticRelation } from '@/semantic/model/SemanticGraph'
+import type { IRelationGizmo } from '@/core/gizmos/IGizmo'
 
 /**
  * Base class for relation gizmos that connect two positions in 3D space.
  * Unlike BaseGizmo (which wraps a SemanticEntity), relation gizmos are built
  * from a SemanticRelation plus resolved source/target positions.
  */
-export abstract class BaseRelationGizmo {
+export abstract class BaseRelationGizmo implements IRelationGizmo {
   readonly id: string
   protected selected = false
   protected objects: THREE.Object3D[] = []

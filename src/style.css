@@ -26,7 +26,7 @@
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--bg, #0b0d13);
 }
 
 #app {
@@ -63,8 +63,8 @@ body {
 
 .lesson-item {
   border: 1px solid var(--stroke);
-  background: var(--panel);
-  color: var(--text);
+  background: var(--panel, #111522);
+  color: var(--text, #e7ecf5);
   text-align: left;
   padding: 10px 12px;
   border-radius: var(--radius);
@@ -87,7 +87,7 @@ body {
 }
 
 .lesson-tags {
-  color: var(--muted);
+  color: var(--muted, #9aa7c4);
   font-size: 12px;
   margin-top: 4px;
 }

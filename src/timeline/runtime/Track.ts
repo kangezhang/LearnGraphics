@@ -31,6 +31,11 @@ export abstract class Track<T = unknown> {
     return this.keyframes
   }
 
+  clearKeyframes(): this {
+    this.keyframes = []
+    return this
+  }
+
   /** Evaluate the track at a given time, returns the computed value */
   abstract evaluate(time: number): T | undefined
 

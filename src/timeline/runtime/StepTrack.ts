@@ -8,8 +8,11 @@ export interface StepData {
 
 /** Discrete step track — each keyframe is one step */
 export class StepTrack extends Track<StepData> {
-  constructor(id: string) {
+  readonly processId?: string
+
+  constructor(id: string, processId?: string) {
     super(id, 'step')
+    this.processId = processId
   }
 
   get totalSteps(): number {

@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://learn-graphics.local/schema/lesson-schema.json",
+  "title": "Lesson DSL",
+  "type": "object",
+  "required": ["meta"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "level": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "entities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entity" }
+    },
+    "relations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/relation" }
+    },
+    "process": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "config": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "views": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/view" }
+    },
+    "ui": {
+      "type": "object",
+      "properties": {
+        "sliders": { "type": "array", "items": { "type": "object" } },
+        "toggles": { "type": "array", "items": { "type": "object" } },
+        "buttons": { "type": "array", "items": { "type": "object" } }
+      },
+      "additionalProperties": true
+    },
+    "timeline": { "$ref": "#/$defs/timeline" }
+  },
+  "$defs": {
+    "entity": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "anchor": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 3,
+              "maxItems": 3
+            }
+          ]
+        },
+        "position": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "direction": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            { "type": "string" }
+          ]
+        },
+        "label": { "type": "string" },
+        "color": { "type": "string" },
+        "props": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "relation": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "source": { "type": "string" },
+        "target": { "type": "string" },
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "vectorA": { "type": "string" },
+        "vectorB": { "type": "string" },
+        "props": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "view": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "enum": ["3d", "graph", "inspector", "plot"] },
+        "camera": { "type": "object" },
+        "overlays": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "marker": {
+      "type": "object",
+      "required": ["time", "label"],
+      "properties": {
+        "time": { "type": "number", "minimum": 0 },
+        "label": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "color": { "type": "string" },
+        "relatedEntities": { "type": "array", "items": { "type": "string" } },
+        "relatedView": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "timeline": {
+      "type": "object",
+      "required": ["duration"],
+      "properties": {
+        "duration": { "type": "number", "minimum": 0 },
+        "loop": { "type": "boolean" },
+        "speed": { "type": "number", "exclusiveMinimum": 0 },
+        "markers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/marker" }
+        },
+        "tracks": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

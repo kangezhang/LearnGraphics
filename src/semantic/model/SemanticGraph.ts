@@ -1,4 +1,16 @@
-export type EntityType = 'node' | 'edge' | 'point' | 'arrow' | 'label' | 'marker' | 'badge' | 'step_sequence' | 'state_overlay' | 'trace_trail'
+export type EntityType =
+  | 'node'
+  | 'edge'
+  | 'point'
+  | 'arrow'
+  | 'label'
+  | 'marker'
+  | 'badge'
+  | 'step_sequence'
+  | 'state_overlay'
+  | 'trace_trail'
+  | 'scalar_field'
+  | 'sample_probe'
 
 export interface SemanticEntity {
   id: string

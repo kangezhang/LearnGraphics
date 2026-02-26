@@ -11,6 +11,8 @@ import { BadgeGizmo } from './entities/BadgeGizmo'
 import { StepSequenceGizmo } from './process/StepSequenceGizmo'
 import { StateOverlayGizmo } from './process/StateOverlayGizmo'
 import { TraceTrailGizmo } from './process/TraceTrailGizmo'
+import { ScalarFieldGizmo } from './fields/ScalarFieldGizmo'
+import { SampleProbeGizmo } from './fields/SampleProbeGizmo'
 import type { BaseRelationGizmo } from './relations/BaseRelationGizmo'
 import { MeasureDistanceGizmo } from './relations/MeasureDistanceGizmo'
 import { MeasureAngleGizmo } from './relations/MeasureAngleGizmo'
@@ -48,6 +50,12 @@ export class GizmoFactory {
         break
       case 'trace_trail':
         gizmo = new TraceTrailGizmo(entity)
+        break
+      case 'scalar_field':
+        gizmo = new ScalarFieldGizmo(entity)
+        break
+      case 'sample_probe':
+        gizmo = new SampleProbeGizmo(entity)
         break
       default:
         return null

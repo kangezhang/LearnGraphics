@@ -1,82 +1,147 @@
 import './style.css'
-import { Shell } from '@/app/Shell'
-import { SemanticGraph } from '@/semantic/model/SemanticGraph'
-import { TimelineRuntime } from '@/timeline/runtime/TimelineRuntime'
-import { StepTrack } from '@/timeline/runtime/StepTrack'
-import { EventTrack } from '@/timeline/runtime/EventTrack'
+import { Shell, type LessonListItem } from '@/app/Shell'
+import { DSLParser } from '@/semantic/compiler/DSLParser'
+import { DSLCompiler } from '@/semantic/compiler/DSLCompiler'
+import type { TimelineRuntime } from '@/timeline/runtime/TimelineRuntime'
+import type { SemanticGraph } from '@/semantic/model/SemanticGraph'
+
+interface LoadedLesson {
+  id: string
+  title: string
+  tags: string[]
+  order: number
+  graph: SemanticGraph
+  runtime: TimelineRuntime
+}
 
 const appRoot = document.querySelector<HTMLDivElement>('#app')
 if (!appRoot) throw new Error('Missing #app root element')
 
 const shell = new Shell(appRoot)
+const parser = new DSLParser()
+const compiler = new DSLCompiler()
 
-// ── Graph ─────────────────────────────────────────────────────────────────
-const graph = new SemanticGraph()
-const nodes = ['A', 'B', 'C', 'D', 'E', 'F']
-nodes.forEach((id, i) => graph.addEntity({ id, type: 'node', props: { label: id, value: i + 1 } }))
+const lessonFiles = import.meta.glob('./dsl/examples/*.yaml', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>
 
-const edges: [string, string][] = [
-  ['A', 'B'], ['A', 'C'],
-  ['B', 'D'], ['B', 'E'],
-  ['C', 'F'],
-]
-edges.forEach(([s, t], i) =>
-  graph.addRelation({ id: `r${i}`, type: 'link', sourceId: s, targetId: t, props: {} })
-)
+const loadedLessons: LoadedLesson[] = []
+for (const [path, raw] of Object.entries(lessonFiles)) {
+  const parsed = parser.parse(raw, 'yaml')
+  if (!parsed.lesson) {
+    console.error(`[DSL] parse failed for ${path}`, parsed.issues)
+    continue
+  }
+  if (parsed.issues.length > 0) {
+    console.warn(`[DSL] parse issues in ${path}`, parsed.issues)
+  }
 
-shell.loadGraph(graph)
+  const compiled = compiler.compile(parsed.lesson)
+  if (compiled.diagnostics.length > 0) {
+    console.warn(`[DSL] validation diagnostics in ${path}`, compiled.diagnostics)
+  }
 
-// ── BFS order: A B C D E F ────────────────────────────────────────────────
-const bfsOrder = ['A', 'B', 'C', 'D', 'E', 'F']
-const STEP_DUR = 1.2  // seconds per step
-
-const runtime = new TimelineRuntime({
-  duration: bfsOrder.length * STEP_DUR,
-  loop: false,
-  speed: 1,
-})
-
-// StepTrack — one keyframe per BFS step
-const stepTrack = new StepTrack('steps')
-bfsOrder.forEach((nodeId, i) => {
-  stepTrack.addKeyframe({
-    time: i * STEP_DUR,
-    value: { index: i, label: nodeId, payload: { nodeId } },
+  loadedLessons.push({
+    id: parsed.lesson.meta.id,
+    title: parsed.lesson.meta.title,
+    tags: parsed.lesson.meta.tags ?? [],
+    order: parsed.lesson.meta.order ?? Number.MAX_SAFE_INTEGER,
+    graph: compiled.graph,
+    runtime: compiled.timeline,
   })
+}
+
+loadedLessons.sort((a, b) => {
+  if (a.order !== b.order) return a.order - b.order
+  return a.title.localeCompare(b.title)
 })
-runtime.addTrack(stepTrack)
 
-// EventTrack — fires "visit" event at each step
-const eventTrack = new EventTrack('bfs-events')
-bfsOrder.forEach((nodeId, i) => {
-  eventTrack.addKeyframe({
-    time: i * STEP_DUR,
-    value: { name: 'visit', payload: { nodeId, step: i } },
-  })
-})
-runtime.addTrack(eventTrack)
+if (loadedLessons.length === 0) {
+  throw new Error('No valid lessons loaded from src/dsl/examples/*.yaml')
+}
 
-// Color visited nodes in 3D view
-const VISITED_COLOR = 0x00e5ff   // cyan
-const DEFAULT_COLOR = 0x4488ff   // original blue
+let activeCleanup: Array<() => void> = []
+let activeRuntime: TimelineRuntime | null = null
 
-runtime.on({
-  type: 'event',
-  handler: (evt) => {
-    if (evt.name === 'visit') {
-      const { nodeId, step } = evt.payload as { nodeId: string; step: number }
-      console.log(`[BFS] step ${step + 1}: visit ${nodeId}`)
+const lessonList: LessonListItem[] = loadedLessons.map(lesson => ({
+  id: lesson.id,
+  title: lesson.title,
+  tags: lesson.tags,
+}))
+
+shell.setLessons(lessonList, (id) => {
+  switchLesson(id)
+}, loadedLessons[0].id)
+
+switchLesson(loadedLessons[0].id)
+
+function switchLesson(id: string): void {
+  const lesson = loadedLessons.find(l => l.id === id)
+  if (!lesson) return
+
+  if (activeRuntime) activeRuntime.stop()
+  activeCleanup.forEach(fn => fn())
+  activeCleanup = []
+  activeRuntime = lesson.runtime
+
+  shell.loadGraph(lesson.graph)
+  shell.setTimeline(lesson.runtime)
+  shell.setActiveLesson(lesson.id)
+
+  const nodeIds = lesson.graph.allEntities().filter(e => e.type === 'node').map(e => e.id)
+  const VISITED_COLOR = 0x00e5ff
+  const DEFAULT_COLOR = 0x4488ff
+  let lastVisitedSignature = ''
+
+  const applyVisitedColors = (time: number): void => {
+    const evalResult = lesson.runtime.evaluateAt(time)
+    const stepEval = evalResult.steps.find(s => s.trackId === 'steps') ?? evalResult.steps[0]
+    const completedSteps = stepEval?.completed ?? []
+    const visitedNodeIds = new Set<string>()
+
+    for (const step of completedSteps) {
+      const payload = step.payload as { nodeId?: string } | undefined
+      const nodeId = payload?.nodeId ?? step.label
+      if (nodeId) visitedNodeIds.add(nodeId)
+    }
+
+    const signature = Array.from(visitedNodeIds).sort().join('|')
+    if (signature === lastVisitedSignature) return
+    lastVisitedSignature = signature
+
+    for (const nodeId of nodeIds) {
+      shell.getView3D()?.setNodeColor(nodeId, DEFAULT_COLOR)
+    }
+    for (const nodeId of visitedNodeIds) {
       shell.getView3D()?.setNodeColor(nodeId, VISITED_COLOR)
     }
-  },
-})
+  }
 
-// Reset colors on loop / seek back to start
-runtime.on({
-  type: 'end',
-  handler: () => {
-    console.log('[BFS] traversal complete')
-  },
-})
+  activeCleanup.push(
+    lesson.runtime.on({
+      type: 'tick',
+      handler: (time) => applyVisitedColors(time),
+    }),
+    lesson.runtime.on({
+      type: 'event',
+      handler: (evt) => {
+        if (evt.name === 'visit') {
+          const payload = evt.payload as { nodeId?: string; step?: number } | undefined
+          const nodeId = payload?.nodeId ?? '(unknown)'
+          const step = typeof payload?.step === 'number' ? payload.step + 1 : '?'
+          console.log(`[${lesson.id}] step ${step}: visit ${nodeId}`)
+        }
+      },
+    }),
+    lesson.runtime.on({
+      type: 'end',
+      handler: () => {
+        console.log(`[${lesson.id}] traversal complete`)
+      },
+    }),
+  )
 
-shell.setTimeline(runtime)
+  applyVisitedColors(0)
+}

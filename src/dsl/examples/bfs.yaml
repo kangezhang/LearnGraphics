@@ -1,0 +1,67 @@
+meta:
+  id: bfs
+  title: BFS Traversal
+  tags: [graph, algorithm, bfs]
+  level: beginner
+  order: 2
+
+entities:
+  - { id: A, type: node, label: A, props: { value: 1 } }
+  - { id: B, type: node, label: B, props: { value: 2 } }
+  - { id: C, type: node, label: C, props: { value: 3 } }
+  - { id: D, type: node, label: D, props: { value: 4 } }
+  - { id: E, type: node, label: E, props: { value: 5 } }
+  - { id: F, type: node, label: F, props: { value: 6 } }
+
+relations:
+  - { id: r1, type: link, source: A, target: B }
+  - { id: r2, type: link, source: A, target: C }
+  - { id: r3, type: link, source: B, target: D }
+  - { id: r4, type: link, source: B, target: E }
+  - { id: r5, type: link, source: C, target: F }
+
+process:
+  id: bfs
+  type: bfs
+  config:
+    startNodeId: A
+    targetNodeId: F
+
+timeline:
+  duration: 7.2
+  loop: false
+  speed: 1
+  markers:
+    - time: 0
+      label: Start
+    - time: 2.4
+      label: Level 2
+    - time: 6
+      label: Complete
+  tracks:
+    - id: steps
+      type: step
+      processId: bfs
+      steps:
+        - { index: 0, time: 0, label: A, payload: { nodeId: A } }
+        - { index: 1, time: 1.2, label: B, payload: { nodeId: B } }
+        - { index: 2, time: 2.4, label: C, payload: { nodeId: C } }
+        - { index: 3, time: 3.6, label: D, payload: { nodeId: D } }
+        - { index: 4, time: 4.8, label: E, payload: { nodeId: E } }
+        - { index: 5, time: 6.0, label: F, payload: { nodeId: F } }
+    - id: bfs-state
+      type: state
+      processId: bfs
+      states:
+        - { time: 0.0, state: idle }
+        - { time: 6.0, state: completed }
+    - id: bfs-events
+      type: event
+      processId: bfs
+      events:
+        - { time: 0, action: visit, params: { nodeId: A, step: 0 } }
+        - { time: 1.2, action: visit, params: { nodeId: B, step: 1 } }
+        - { time: 2.4, action: visit, params: { nodeId: C, step: 2 } }
+        - { time: 3.6, action: visit, params: { nodeId: D, step: 3 } }
+        - { time: 4.8, action: visit, params: { nodeId: E, step: 4 } }
+        - { time: 6.0, action: visit, params: { nodeId: F, step: 5 } }

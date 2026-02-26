@@ -1,0 +1,33 @@
+meta:
+  id: dag-schedule
+  title: DAG Scheduling
+  tags: [system, dag, schedule]
+  level: intermediate
+  order: 4
+
+entities:
+  - { id: taskA, type: node, label: A }
+  - { id: taskB, type: node, label: B }
+  - { id: taskC, type: node, label: C }
+  - { id: taskD, type: node, label: D }
+
+relations:
+  - { id: e1, type: link, source: taskA, target: taskB }
+  - { id: e2, type: link, source: taskA, target: taskC }
+  - { id: e3, type: link, source: taskB, target: taskD }
+  - { id: e4, type: link, source: taskC, target: taskD }
+
+timeline:
+  duration: 6
+  markers:
+    - { time: 0, label: Queue Init }
+    - { time: 3, label: Parallel Run }
+    - { time: 6, label: Complete }
+  tracks:
+    - id: sched-state
+      type: state
+      processId: dag
+      states:
+        - { time: 0, state: queued }
+        - { time: 2, state: running }
+        - { time: 6, state: completed }

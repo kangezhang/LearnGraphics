@@ -1,7 +1,8 @@
 import { TimelineRuntime } from '@/timeline/runtime/TimelineRuntime'
-import { StepTrack } from '@/timeline/runtime/StepTrack'
 import { PropertyTrack } from '@/timeline/runtime/PropertyTrack'
 import { Track } from '@/timeline/runtime/Track'
+import { Ruler } from '@/timeline/ui/Ruler'
+import { TrackList, type KeyframeRef } from '@/timeline/ui/TrackList'
 
 const RULER_H = 24
 const TRACK_H = 28
@@ -17,7 +18,11 @@ export class TimelineEditorUI {
   private unsub: (() => void)[] = []
   private _draggingMarkerIdx = -1
   private _draggingPlayhead = false
+  private _draggingKeyframe: KeyframeRef | null = null
+  private _activeKeyframe: KeyframeRef | null = null
   private _pixelRatio = window.devicePixelRatio || 1
+  private ruler = new Ruler()
+  private trackList = new TrackList()
 
   constructor(runtime: TimelineRuntime) {
     this.runtime = runtime
@@ -41,6 +46,9 @@ export class TimelineEditorUI {
   }
 
   mount(container: HTMLElement): void {
+    if (this.el.parentElement && this.el.parentElement !== container) {
+      this.el.parentElement.removeChild(this.el)
+    }
     container.appendChild(this.el)
     this.resize()
   }
@@ -58,6 +66,15 @@ export class TimelineEditorUI {
   dispose(): void {
     this.unsub.forEach(fn => fn())
     this.unsub = []
+
+    this.canvas.removeEventListener('mousedown', this.onMouseDown)
+    this.canvas.removeEventListener('mousemove', this.onMouseMove)
+    this.canvas.removeEventListener('dblclick', this.onDblClick)
+    window.removeEventListener('mouseup', this.onMouseUp)
+
+    if (this.el.parentElement) {
+      this.el.parentElement.removeChild(this.el)
+    }
   }
 
   // ── Drawing ───────────────────────────────────────────────────────────────
@@ -69,107 +86,38 @@ export class TimelineEditorUI {
     this.ctx.setTransform(pr, 0, 0, pr, 0, 0)
     this.ctx.clearRect(0, 0, w, h)
 
-    this.drawRuler(w)
-    this.drawTracks(w, h)
-    this.drawMarkers(w)
-    this.drawPlayhead(w, h)
-  }
-
-  private drawRuler(w: number): void {
-    const ctx = this.ctx
-    const dur = this.runtime.duration
-    const trackW = w - LABEL_W
-
-    // ruler background
-    ctx.fillStyle = '#111520'
-    ctx.fillRect(LABEL_W, 0, trackW, RULER_H)
-
-    // tick marks
-    ctx.fillStyle = '#2a3045'
-    ctx.fillRect(LABEL_W, RULER_H - 1, trackW, 1)
-
-    const step = this.niceStep(dur, trackW / 60)
-    ctx.fillStyle = '#4a5568'
-    ctx.font = '10px monospace'
-    ctx.textAlign = 'center'
-
-    for (let t = 0; t <= dur + 1e-9; t += step) {
-      const x = LABEL_W + (t / dur) * trackW
-      const isMajor = Math.round(t / step) % 5 === 0
-      const tickH = isMajor ? 8 : 4
-      ctx.fillStyle = isMajor ? '#4a5568' : '#2a3045'
-      ctx.fillRect(x, RULER_H - tickH, 1, tickH)
-      if (isMajor) {
-        ctx.fillStyle = '#6b7280'
-        ctx.fillText(`${t.toFixed(t < 10 ? 1 : 0)}s`, x, RULER_H - 10)
-      }
-    }
-
-    // label area header
-    ctx.fillStyle = '#0b0e14'
-    ctx.fillRect(0, 0, LABEL_W, RULER_H)
-    ctx.fillStyle = '#4a5568'
-    ctx.fillRect(LABEL_W - 1, 0, 1, RULER_H)
-    ctx.fillStyle = '#6b7280'
-    ctx.font = '10px monospace'
-    ctx.textAlign = 'left'
-    ctx.fillText('TRACKS', 8, 15)
-  }
-
-  private drawTracks(w: number, h: number): void {
-    const ctx = this.ctx
-    const dur = this.runtime.duration
-    const trackW = w - LABEL_W
-    const tracks = Array.from(this.runtime.getTracks().values())
-
-    tracks.forEach((track, i) => {
-      const y = RULER_H + i * TRACK_H
-      if (y + TRACK_H > h) return
-
-      // row background
-      ctx.fillStyle = i % 2 === 0 ? '#0d1018' : '#0b0e14'
-      ctx.fillRect(0, y, w, TRACK_H)
-
-      // label
-      ctx.fillStyle = '#4a5568'
-      ctx.fillRect(LABEL_W - 1, y, 1, TRACK_H)
-      ctx.fillStyle = '#9ca3af'
-      ctx.font = '11px monospace'
-      ctx.textAlign = 'left'
-      ctx.fillText(this.trackLabel(track), 8, y + TRACK_H / 2 + 4)
-
-      // type badge
-      const badgeColor = this.trackBadgeColor(track.type)
-      ctx.fillStyle = badgeColor
-      ctx.fillRect(LABEL_W - 4, y + 8, 3, TRACK_H - 16)
-
-      // keyframes
-      for (const kf of track.getKeyframes()) {
-        const x = LABEL_W + (kf.time / dur) * trackW
-        const cy = y + TRACK_H / 2
-        this.drawDiamond(ctx, x, cy, 5, badgeColor)
-      }
+    this.ruler.draw({
+      ctx: this.ctx,
+      width: w,
+      labelWidth: LABEL_W,
+      height: RULER_H,
+      duration: this.runtime.duration,
     })
 
-    // fill remaining area
-    const usedH = RULER_H + tracks.length * TRACK_H
-    if (usedH < h) {
-      ctx.fillStyle = '#0b0e14'
-      ctx.fillRect(0, usedH, w, h - usedH)
-    }
+    this.trackList.draw({
+      ctx: this.ctx,
+      width: w,
+      height: h,
+      labelWidth: LABEL_W,
+      rowHeight: TRACK_H,
+      rulerHeight: RULER_H,
+      duration: this.runtime.duration,
+      tracks: this.getTracks(),
+      activeKeyframe: this._activeKeyframe,
+    })
+
+    this.drawMarkers()
+    this.drawPlayhead(h)
   }
 
-  private drawMarkers(w: number): void {
+  private drawMarkers(): void {
     const ctx = this.ctx
-    const dur = this.runtime.duration
-    const trackW = w - LABEL_W
     const h = this.el.clientHeight
 
     for (const marker of this.runtime.getMarkers()) {
-      const x = LABEL_W + (marker.time / dur) * trackW
+      const x = this.timeToX(marker.time)
       const color = marker.color ?? MARKER_COLOR
 
-      // vertical line
       ctx.strokeStyle = color
       ctx.globalAlpha = 0.6
       ctx.lineWidth = 1
@@ -181,7 +129,6 @@ export class TimelineEditorUI {
       ctx.setLineDash([])
       ctx.globalAlpha = 1
 
-      // flag on ruler
       ctx.fillStyle = color
       ctx.beginPath()
       ctx.moveTo(x, 2)
@@ -192,7 +139,6 @@ export class TimelineEditorUI {
       ctx.closePath()
       ctx.fill()
 
-      // label
       ctx.fillStyle = '#fff'
       ctx.font = '9px monospace'
       ctx.textAlign = 'left'
@@ -200,13 +146,10 @@ export class TimelineEditorUI {
     }
   }
 
-  private drawPlayhead(w: number, h: number): void {
+  private drawPlayhead(h: number): void {
     const ctx = this.ctx
-    const dur = this.runtime.duration
-    const trackW = w - LABEL_W
-    const x = LABEL_W + (this.runtime.time / dur) * trackW
+    const x = this.timeToX(this.runtime.time)
 
-    // line
     ctx.strokeStyle = PLAYHEAD_COLOR
     ctx.lineWidth = 1.5
     ctx.beginPath()
@@ -214,7 +157,6 @@ export class TimelineEditorUI {
     ctx.lineTo(x, h)
     ctx.stroke()
 
-    // head triangle
     ctx.fillStyle = PLAYHEAD_COLOR
     ctx.beginPath()
     ctx.moveTo(x - 5, 0)
@@ -222,20 +164,6 @@ export class TimelineEditorUI {
     ctx.lineTo(x, 8)
     ctx.closePath()
     ctx.fill()
-  }
-
-  private drawDiamond(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string): void {
-    ctx.fillStyle = color
-    ctx.strokeStyle = '#0b0e14'
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(x, y - r)
-    ctx.lineTo(x + r, y)
-    ctx.lineTo(x, y + r)
-    ctx.lineTo(x - r, y)
-    ctx.closePath()
-    ctx.fill()
-    ctx.stroke()
   }
 
   // ── Interaction ───────────────────────────────────────────────────────────
@@ -255,16 +183,12 @@ export class TimelineEditorUI {
     const { x, t } = this.eventToTime(e)
     if (x < LABEL_W) return
 
-    // check playhead hit
-    const dur = this.runtime.duration
-    const trackW = this.el.clientWidth - LABEL_W
-    const phX = LABEL_W + (this.runtime.time / dur) * trackW
+    const phX = this.timeToX(this.runtime.time)
     if (Math.abs(e.offsetX - phX) < 8) {
       this._draggingPlayhead = true
       return
     }
 
-    // check marker hit (ruler area)
     if (e.offsetY < RULER_H) {
       const idx = this.markerAtTime(t)
       if (idx >= 0) {
@@ -273,7 +197,18 @@ export class TimelineEditorUI {
       }
     }
 
-    // click on track area → seek
+    const keyframeRef = this.keyframeAtPosition(e.offsetX, e.offsetY)
+    if (keyframeRef) {
+      this._draggingKeyframe = keyframeRef
+      this._activeKeyframe = keyframeRef
+      const track = this.findTrackById(keyframeRef.trackId)
+      const kf = track?.getKeyframes()[keyframeRef.keyIndex]
+      if (kf) this.runtime.seek(kf.time)
+      this.draw()
+      return
+    }
+
+    this._activeKeyframe = null
     this.runtime.seek(t)
   }
 
@@ -285,16 +220,34 @@ export class TimelineEditorUI {
       const markers = this.runtime.getMarkers() as Array<{ time: number; label: string; description?: string; color?: string }>
       markers[this._draggingMarkerIdx].time = Math.max(0, Math.min(this.runtime.duration, t))
       this.draw()
+    } else if (this._draggingKeyframe) {
+      const track = this.findTrackById(this._draggingKeyframe.trackId)
+      const keyframes = track?.getKeyframes()
+      const draggingKf = keyframes?.[this._draggingKeyframe.keyIndex]
+      if (!track || !keyframes || !draggingKf) return
+
+      draggingKf.time = Math.max(0, Math.min(this.runtime.duration, t))
+      this.normalizeTrackKeyframes(track)
+
+      const nextIndex = keyframes.indexOf(draggingKf)
+      if (nextIndex >= 0) {
+        this._draggingKeyframe.keyIndex = nextIndex
+        this._activeKeyframe = { ...this._draggingKeyframe }
+      }
+      this.runtime.seek(draggingKf.time)
+      this.draw()
     }
 
-    // cursor
-    const dur = this.runtime.duration
-    const trackW = this.el.clientWidth - LABEL_W
-    const phX = LABEL_W + (this.runtime.time / dur) * trackW
-    if (Math.abs(e.offsetX - phX) < 8) {
+    const phX = this.timeToX(this.runtime.time)
+    const hoveringKeyframe = this.keyframeAtPosition(e.offsetX, e.offsetY)
+    if (this._draggingKeyframe) {
+      this.canvas.style.cursor = 'grabbing'
+    } else if (Math.abs(e.offsetX - phX) < 8) {
       this.canvas.style.cursor = 'ew-resize'
     } else if (e.offsetY < RULER_H && this.markerAtTime(this.eventToTime(e).t) >= 0) {
       this.canvas.style.cursor = 'grab'
+    } else if (hoveringKeyframe) {
+      this.canvas.style.cursor = 'pointer'
     } else {
       this.canvas.style.cursor = 'default'
     }
@@ -303,15 +256,25 @@ export class TimelineEditorUI {
   private onMouseUp = (): void => {
     this._draggingPlayhead = false
     this._draggingMarkerIdx = -1
+    this._draggingKeyframe = null
   }
 
   private onDblClick = (e: MouseEvent): void => {
-    if (e.offsetY >= RULER_H || e.offsetX < LABEL_W) return
-    const { t } = this.eventToTime(e)
-    const label = prompt('Marker label:', `t=${t.toFixed(2)}s`)
-    if (label !== null) {
-      this.runtime.addMarker({ time: t, label })
-      this.draw()
+    if (e.offsetX < LABEL_W) return
+
+    if (e.offsetY < RULER_H) {
+      const { t } = this.eventToTime(e)
+      const label = prompt('Marker label:', `t=${t.toFixed(2)}s`)
+      if (label !== null) {
+        this.runtime.addMarker({ time: t, label })
+        this.draw()
+      }
+      return
+    }
+
+    const keyframeRef = this.keyframeAtPosition(e.offsetX, e.offsetY)
+    if (keyframeRef) {
+      this.editKeyframe(keyframeRef)
     }
   }
 
@@ -319,46 +282,107 @@ export class TimelineEditorUI {
 
   private eventToTime(e: MouseEvent): { x: number; t: number } {
     const x = e.offsetX
-    const trackW = this.el.clientWidth - LABEL_W
-    const t = Math.max(0, Math.min(this.runtime.duration, ((x - LABEL_W) / trackW) * this.runtime.duration))
+    const t = this.xToTime(x)
     return { x, t }
   }
 
   private markerAtTime(t: number): number {
     const markers = this.runtime.getMarkers()
-    const dur = this.runtime.duration
-    const trackW = this.el.clientWidth - LABEL_W
-    const px = (t / dur) * trackW
+    const px = this.timeToX(t)
     for (let i = 0; i < markers.length; i++) {
-      const mx = (markers[i].time / dur) * trackW
+      const mx = this.timeToX(markers[i].time)
       if (Math.abs(mx - px) < 8) return i
     }
     return -1
   }
 
-  private niceStep(dur: number, minPx: number): number {
-    const steps = [0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60]
+  private keyframeAtPosition(x: number, y: number): KeyframeRef | null {
+    return this.trackList.hitTestKeyframe(x, y, {
+      width: this.el.clientWidth,
+      height: this.el.clientHeight,
+      labelWidth: LABEL_W,
+      rowHeight: TRACK_H,
+      rulerHeight: RULER_H,
+      duration: this.runtime.duration,
+      tracks: this.getTracks(),
+    })
+  }
+
+  private editKeyframe(ref: KeyframeRef): void {
+    const track = this.findTrackById(ref.trackId)
+    if (!track) return
+    const keyframes = track.getKeyframes()
+    const kf = keyframes[ref.keyIndex]
+    if (!kf) return
+
+    const timeInput = prompt('Keyframe time (seconds):', kf.time.toFixed(2))
+    if (timeInput === null) return
+    const nextTime = Number(timeInput)
+    if (!Number.isFinite(nextTime)) {
+      alert('Invalid time value.')
+      return
+    }
+
+    if (track instanceof PropertyTrack) {
+      const valueInput = prompt('Property value:', String(kf.value))
+      if (valueInput === null) return
+      if (typeof kf.value === 'number') {
+        const num = Number(valueInput)
+        if (!Number.isFinite(num)) {
+          alert('Invalid numeric value.')
+          return
+        }
+        kf.value = num
+      } else {
+        kf.value = valueInput
+      }
+    } else {
+      const valueInput = prompt('Keyframe value JSON:', JSON.stringify(kf.value))
+      if (valueInput === null) return
+      try {
+        kf.value = JSON.parse(valueInput) as never
+      } catch {
+        alert('Invalid JSON value.')
+        return
+      }
+    }
+
+    kf.time = Math.max(0, Math.min(this.runtime.duration, nextTime))
+    this.normalizeTrackKeyframes(track)
+    this._activeKeyframe = {
+      trackId: ref.trackId,
+      keyIndex: Math.max(0, track.getKeyframes().indexOf(kf)),
+    }
+    this.runtime.seek(kf.time)
+    this.draw()
+  }
+
+  private findTrackById(id: string): Track | undefined {
+    return this.runtime.getTrack(id)
+  }
+
+  private normalizeTrackKeyframes(track: Track): void {
+    const keyframes = track.getKeyframes()
+    for (const kf of keyframes) {
+      kf.time = Math.max(0, Math.min(this.runtime.duration, kf.time))
+    }
+    keyframes.sort((a, b) => a.time - b.time)
+  }
+
+  private xToTime(x: number): number {
     const trackW = this.el.clientWidth - LABEL_W
-    for (const s of steps) {
-      if ((s / dur) * trackW >= minPx) return s
-    }
-    return steps[steps.length - 1]
+    if (trackW <= 0 || this.runtime.duration <= 0) return 0
+    return Math.max(0, Math.min(this.runtime.duration, ((x - LABEL_W) / trackW) * this.runtime.duration))
   }
 
-  private trackLabel(track: Track): string {
-    if (track instanceof StepTrack) return `step: ${track.id}`
-    if (track instanceof PropertyTrack) return `prop: ${track.id}`
-    return `${track.type}: ${track.id}`
+  private timeToX(time: number): number {
+    const trackW = this.el.clientWidth - LABEL_W
+    if (trackW <= 0 || this.runtime.duration <= 0) return LABEL_W
+    return LABEL_W + (time / this.runtime.duration) * trackW
   }
 
-  private trackBadgeColor(type: string): string {
-    switch (type) {
-      case 'step': return '#4f8ef7'
-      case 'property': return '#10b981'
-      case 'event': return '#f59e0b'
-      case 'state': return '#8b5cf6'
-      default: return '#6b7280'
-    }
+  private getTracks(): Track[] {
+    return Array.from(this.runtime.getTracks().values())
   }
 
   private bindRuntime(): void {

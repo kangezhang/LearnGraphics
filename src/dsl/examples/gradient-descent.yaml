@@ -1,0 +1,91 @@
+meta:
+  id: gradient-descent
+  title: Gradient Descent
+  tags: [numeric, optimization]
+  level: intermediate
+  order: 3
+
+entities:
+  - id: loss-field
+    type: scalar_field
+    position: [0, -0.01, 0]
+    props:
+      size: [6, 6]
+      resolution: 80
+      opacity: 0.88
+      isoCount: 7
+      isoColor: "#e2e8f0"
+      coefficients:
+        a: 1.0
+        b: 1.0
+        c: 0.2
+
+  - id: point
+    type: marker
+    anchor: center
+    color: "#00d084"
+    label: theta
+
+  - id: loss-probe
+    type: sample_probe
+    props:
+      fieldId: loss-field
+      label: f(theta)
+      followMouse: true
+      color: "#f8fafc"
+      height: 1.15
+
+process:
+  id: gd
+  type: gradient_descent
+  config:
+    pointEntityId: point
+    startPoint: [2.5, -1.8]
+    learningRate: 0.2
+    maxIterations: 5
+    epsilon: 0.001
+    coefficients:
+      a: 1.0
+      b: 1.0
+      c: 0.2
+
+timeline:
+  duration: 8
+  loop: false
+  speed: 1
+  markers:
+    - time: 0
+      label: Init
+    - time: 7
+      label: Converged
+  tracks:
+    - id: gd-steps
+      type: step
+      processId: gd
+      steps:
+        - { index: 0, time: 0.0, label: init }
+        - { index: 1, time: 2.0, label: iter-1 }
+        - { index: 2, time: 4.0, label: iter-2 }
+        - { index: 3, time: 6.0, label: iter-3 }
+        - { index: 4, time: 8.0, label: iter-4 }
+    - id: gd-state
+      type: state
+      processId: gd
+      states:
+        - { time: 0.0, state: running }
+        - { time: 8.0, state: completed }
+    - id: gd-events
+      type: event
+      processId: gd
+      events:
+        - { time: 0.0, action: iterate, params: { step: 0 } }
+    - id: loss
+      type: property
+      target: point
+      property: loss
+      keyframes:
+        - { time: 0, value: 8.0 }
+        - { time: 2, value: 4.3 }
+        - { time: 4, value: 2.0 }
+        - { time: 6, value: 1.2 }
+        - { time: 8, value: 1.0 }

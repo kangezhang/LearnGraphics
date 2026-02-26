@@ -1,0 +1,60 @@
+meta:
+  id: ray-intersection
+  title: Ray Plane Intersection
+  tags: [graphics, ray]
+  level: beginner
+  order: 5
+
+entities:
+  - id: ray
+    type: arrow
+    anchor: [0, 1, 0]
+    direction: [1, -0.5, 0]
+    color: "#00c2ff"
+    label: ray
+  - id: hit
+    type: marker
+    anchor: center
+    color: "#ff4d4f"
+    label: hit
+
+relations:
+  - id: rayHit
+    type: intersection
+    source: ray
+    target: hit
+
+process:
+  id: ray-hit
+  type: ray_intersection
+  config:
+    rayEntityId: ray
+    hitEntityId: hit
+    planeNormal: [0, 1, 0]
+    planeOffset: 0
+    maxSteps: 6
+
+timeline:
+  duration: 5
+  tracks:
+    - id: ray-steps
+      type: step
+      processId: ray-hit
+      steps:
+        - { index: 0, time: 0.0, label: trace-0 }
+        - { index: 1, time: 1.0, label: trace-1 }
+        - { index: 2, time: 2.0, label: trace-2 }
+        - { index: 3, time: 3.0, label: trace-3 }
+        - { index: 4, time: 4.0, label: trace-4 }
+        - { index: 5, time: 5.0, label: trace-5 }
+    - id: ray-state
+      type: state
+      processId: ray-hit
+      states:
+        - { time: 0, state: tracing }
+        - { time: 5, state: hit, trigger: intersection }
+    - id: ray-events
+      type: event
+      processId: ray-hit
+      events:
+        - { time: 0.0, action: trace }
