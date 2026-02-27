@@ -24,7 +24,10 @@ export class AnchorResolver {
     if (text === 'camera') return AnchorFunctions.camera()
 
     const call = parseCall(text)
-    if (!call) return AnchorFunctions.center()
+    if (!call) {
+      const direct = ctx.entityMap.get(text)
+      return direct ? this.entityPosition(direct) : AnchorFunctions.center()
+    }
 
     const args = call.args.map(arg => this.resolveArgument(arg, ctx))
     switch (call.name) {

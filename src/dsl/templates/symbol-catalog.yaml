@@ -1,0 +1,65 @@
+# Symbol preset catalog (copy needed entries into your lesson entities)
+
+entities:
+  - id: sym-camera
+    type: symbol
+    position: [-2.6, 1.7, 1.0]
+    color: "#60a5fa"
+    label: camera
+    props: { preset: camera, size: 0.42 }
+
+  - id: sym-light
+    type: symbol
+    position: [2.6, 1.7, 1.0]
+    color: "#fbbf24"
+    label: light
+    props: { preset: light, size: 0.42 }
+
+  - id: sym-target
+    type: symbol
+    position: [0.0, 0.2, 0.0]
+    color: "#f43f5e"
+    label: target
+    props: { preset: target, size: 0.36 }
+
+  - id: sym-origin
+    type: symbol
+    position: [0.0, -0.05, 0.0]
+    color: "#22d3ee"
+    label: origin
+    props: { preset: origin, size: 0.32 }
+
+  - id: sym-ray
+    type: symbol
+    position: [-1.4, 0.9, 0.0]
+    color: "#38bdf8"
+    label: ray
+    props: { preset: ray, size: 0.36 }
+
+  - id: sym-eye
+    type: symbol
+    position: [1.4, 1.2, 0.0]
+    color: "#93c5fd"
+    label: observer
+    props: { preset: eye, size: 0.34 }
+
+  - id: sym-screen
+    type: symbol
+    position: [0.0, 1.6, -0.2]
+    color: "#c4b5fd"
+    label: screen
+    props: { preset: screen, size: 0.38 }
+
+  - id: sym-warning
+    type: symbol
+    position: [-0.8, 1.4, 0.0]
+    color: "#fb7185"
+    label: warning
+    props: { preset: warning, size: 0.34 }
+
+  - id: sym-info
+    type: symbol
+    position: [0.8, 1.4, 0.0]
+    color: "#7dd3fc"
+    label: info
+    props: { preset: info, size: 0.34 }

@@ -8,6 +8,7 @@ export class LabelGizmo extends BaseGizmo {
   private ctx!: CanvasRenderingContext2D
   private normalColor = '#4488ff'
   private selectedColor = '#ff8800'
+  private currentLabel = ''
 
   build(entity: SemanticEntity): THREE.Object3D[] {
     const p = entity.props as Record<string, unknown>
@@ -15,7 +16,8 @@ export class LabelGizmo extends BaseGizmo {
     this.canvas.width = 256
     this.canvas.height = 64
     this.ctx = this.canvas.getContext('2d')!
-    this.drawLabel(String(p.label ?? entity.id), false)
+    this.currentLabel = String(p.label ?? entity.id)
+    this.drawLabel(this.currentLabel, false)
 
     const texture = new THREE.CanvasTexture(this.canvas)
     const mat = new THREE.SpriteMaterial({ map: texture, depthTest: false })
@@ -38,13 +40,13 @@ export class LabelGizmo extends BaseGizmo {
       (p.y as number) ?? 0,
       (p.z as number) ?? 0
     )
-    this.drawLabel(String(p.label ?? entity.id), this.selected)
+    this.currentLabel = String(p.label ?? entity.id)
+    this.drawLabel(this.currentLabel, this.selected)
     ;(this.sprite.material as THREE.SpriteMaterial).map!.needsUpdate = true
   }
 
   protected onSelectionChange(selected: boolean): void {
-    const p = this.sprite.userData as Record<string, unknown>
-    this.drawLabel(String(p.label ?? this.id), selected)
+    this.drawLabel(this.currentLabel || this.id, selected)
     ;(this.sprite.material as THREE.SpriteMaterial).map!.needsUpdate = true
   }
 

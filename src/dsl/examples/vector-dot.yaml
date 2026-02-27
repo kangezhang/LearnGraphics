@@ -5,7 +5,17 @@ meta:
   level: beginner
   order: 1
 
+views:
+  - { id: v3d, type: 3d, overlays: [coordinate_frame] }
+  - { id: vplot, type: plot }
+  - { id: vinspector, type: inspector }
+
 entities:
+  - id: origin
+    type: marker
+    position: [0, 0, 0]
+    color: "#ffffff"
+    label: O
   - id: vectorA
     type: arrow
     anchor: center
@@ -18,30 +28,171 @@ entities:
     direction: [2, -1, 0]
     color: "#ff8800"
     label: B
+  - id: tipA
+    type: marker
+    position: [3, 2, 0]
+    color: "#0088ff"
+    label: A
+  - id: tipB
+    type: marker
+    position: [2, -1, 0]
+    color: "#ff8800"
+    label: B
+  - id: projAonB
+    type: marker
+    position: [1.6, -0.8, 0]
+    color: "#ff4d4f"
+    label: projA
+  - id: dotBadge
+    type: badge
+    position: [1.1, 1.02, 0]
+    props:
+      value: "A·B = ?"
 
 relations:
   - id: angleAB
     type: measureAngle
-    vectorA: vectorA
-    vectorB: vectorB
+    vectorA: tipA
+    vectorB: tipB
+    props:
+      vx: 0
+      vy: 0
+      vz: 0
+      color: "#aaff44"
+      label: "θ"
+      showArms: false
+  - id: projectionAonB
+    type: projection
+    source: tipA
+    target: origin
+    props:
+      dx: 2
+      dy: -1
+      dz: 0
+      color: "#ff66cc"
+      showProjectionLine: false
+  - id: distToProjection
+    type: measureDistance
+    source: tipA
+    target: projAonB
+    props:
+      unit: u
+      color: "#00ccff"
+      label: "|A-perp|"
+
+ui:
+  sliders:
+    - id: a_angle_deg
+      label: A Angle (deg)
+      min: -170
+      max: 170
+      step: 1
+      value: 33.69
+    - id: b_angle_deg
+      label: B Angle (deg)
+      min: -170
+      max: 170
+      step: 1
+      value: -26.57
+    - id: a_length
+      label: A Length
+      min: 0.5
+      max: 5
+      step: 0.05
+      value: 3.606
+    - id: b_length
+      label: B Length
+      min: 0.5
+      max: 5
+      step: 0.05
+      value: 2.236
+  bindings:
+    - target: vectorA
+      property: dx
+      expr: Math.cos(degToRad(state.a_angle_deg)) * state.a_length
+    - target: vectorA
+      property: dy
+      expr: Math.sin(degToRad(state.a_angle_deg)) * state.a_length
+    - target: vectorA
+      property: dz
+      value: 0
+    - target: tipA
+      property: x
+      expr: Number(entity('vectorA').dx ?? 0)
+    - target: tipA
+      property: y
+      expr: Number(entity('vectorA').dy ?? 0)
+    - target: tipA
+      property: z
+      value: 0
+
+    - target: vectorB
+      property: dx
+      expr: Math.cos(degToRad(state.b_angle_deg)) * state.b_length
+    - target: vectorB
+      property: dy
+      expr: Math.sin(degToRad(state.b_angle_deg)) * state.b_length
+    - target: vectorB
+      property: dz
+      value: 0
+    - target: tipB
+      property: x
+      expr: Number(entity('vectorB').dx ?? 0)
+    - target: tipB
+      property: y
+      expr: Number(entity('vectorB').dy ?? 0)
+    - target: tipB
+      property: z
+      value: 0
+
+    - target: projectionAonB
+      targetKind: relation
+      property: dx
+      expr: Number(entity('vectorB').dx ?? 0)
+    - target: projectionAonB
+      targetKind: relation
+      property: dy
+      expr: Number(entity('vectorB').dy ?? 0)
+    - target: projectionAonB
+      targetKind: relation
+      property: dz
+      value: 0
+
+    - target: projAonB
+      property: x
+      expr: ((Number(entity('vectorA').dx ?? 0) * Number(entity('vectorB').dx ?? 0) + Number(entity('vectorA').dy ?? 0) * Number(entity('vectorB').dy ?? 0)) / (Math.pow(Number(entity('vectorB').dx ?? 0), 2) + Math.pow(Number(entity('vectorB').dy ?? 0), 2) || 1e-8)) * Number(entity('vectorB').dx ?? 0)
+    - target: projAonB
+      property: y
+      expr: ((Number(entity('vectorA').dx ?? 0) * Number(entity('vectorB').dx ?? 0) + Number(entity('vectorA').dy ?? 0) * Number(entity('vectorB').dy ?? 0)) / (Math.pow(Number(entity('vectorB').dx ?? 0), 2) + Math.pow(Number(entity('vectorB').dy ?? 0), 2) || 1e-8)) * Number(entity('vectorB').dy ?? 0)
+    - target: projAonB
+      property: z
+      value: 0
+
+    - target: dotBadge
+      property: value
+      expr: "'A·B = ' + formatNumber(Number(entity('vectorA').dx ?? 0) * Number(entity('vectorB').dx ?? 0) + Number(entity('vectorA').dy ?? 0) * Number(entity('vectorB').dy ?? 0), 2)"
 
 timeline:
-  duration: 10
+  duration: 8
   loop: false
   speed: 1
   markers:
     - time: 0
-      label: Init
-    - time: 5
+      label: Vectors
+      description: Start from vectors A and B, then compare angle and direction.
+    - time: 4
       label: Projection
+      description: Watch point projAonB and the helper line for A projected onto B.
+    - time: 8
+      label: Dot Product
+      description: Read the final dot value and relate it to projection length.
   tracks:
-    - id: rotateA
+    - id: dot-value
       type: property
-      target: vectorA
-      property: rotation.z
+      target: dotBadge
+      property: value
       keyframes:
         - time: 0
-          value: 0
-        - time: 8
-          value: 6.28
-          easing: ease-in-out
+          value: "A·B = ?"
+        - time: 4
+          value: "A·B = 4"

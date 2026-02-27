@@ -5,11 +5,29 @@ meta:
   level: intermediate
   order: 4
 
+views:
+  - { id: v3d, type: 3d }
+  - { id: vgraph, type: graph }
+  - { id: vplot, type: plot }
+  - { id: vinspector, type: inspector }
+
 entities:
   - { id: taskA, type: node, label: A }
   - { id: taskB, type: node, label: B }
   - { id: taskC, type: node, label: C }
   - { id: taskD, type: node, label: D }
+  - id: worker-0
+    type: badge
+    position: [-2.8, 1.4, 0]
+    props:
+      value: "W0:A"
+      color: "#0f766e"
+  - id: worker-1
+    type: badge
+    position: [-2.8, 1.0, 0]
+    props:
+      value: "W1:idle"
+      color: "#4c1d95"
 
 relations:
   - { id: e1, type: link, source: taskA, target: taskB }
@@ -17,17 +35,120 @@ relations:
   - { id: e3, type: link, source: taskB, target: taskD }
   - { id: e4, type: link, source: taskC, target: taskD }
 
+ui:
+  sliders:
+    - id: dag_stage_gap
+      label: Stage Gap
+      min: 1
+      max: 3.5
+      step: 0.05
+      value: 1.8
+    - id: dag_lane_gap
+      label: Parallel Lane Gap
+      min: 0.6
+      max: 2.8
+      step: 0.05
+      value: 1.6
+  bindings:
+    - target: taskA
+      property: x
+      expr: -1 * state.dag_stage_gap
+    - target: taskA
+      property: z
+      value: 0
+
+    - target: taskB
+      property: x
+      value: 0
+    - target: taskB
+      property: z
+      expr: 0.5 * state.dag_lane_gap
+
+    - target: taskC
+      property: x
+      value: 0
+    - target: taskC
+      property: z
+      expr: -0.5 * state.dag_lane_gap
+
+    - target: taskD
+      property: x
+      expr: state.dag_stage_gap
+    - target: taskD
+      property: z
+      value: 0
+
 timeline:
   duration: 6
   markers:
-    - { time: 0, label: Queue Init }
-    - { time: 3, label: Parallel Run }
-    - { time: 6, label: Complete }
+    - time: 0
+      label: Queue Init
+      description: Only task A is runnable before dependencies are unlocked.
+    - time: 3
+      label: Parallel Run
+      description: Tasks B and C run concurrently on separate workers.
+    - time: 6
+      label: Complete
+      description: Task D finishes after B and C, then the DAG is done.
   tracks:
+    - id: dag-steps
+      type: step
+      steps:
+        - { index: 0, time: 0, label: taskA, payload: { running: taskA } }
+        - { index: 1, time: 2, label: taskB, payload: { running: taskB } }
+        - { index: 2, time: 2, label: taskC, payload: { running: taskC } }
+        - { index: 3, time: 4, label: taskD, payload: { running: taskD } }
     - id: sched-state
       type: state
-      processId: dag
       states:
         - { time: 0, state: queued }
         - { time: 2, state: running }
         - { time: 6, state: completed }
+    - id: taskA-status
+      type: property
+      target: taskA
+      property: status
+      keyframes:
+        - { time: 0, value: running }
+        - { time: 2, value: done }
+    - id: taskB-status
+      type: property
+      target: taskB
+      property: status
+      keyframes:
+        - { time: 0, value: waiting }
+        - { time: 2, value: running }
+        - { time: 4, value: done }
+    - id: taskC-status
+      type: property
+      target: taskC
+      property: status
+      keyframes:
+        - { time: 0, value: waiting }
+        - { time: 2, value: running }
+        - { time: 4, value: done }
+    - id: taskD-status
+      type: property
+      target: taskD
+      property: status
+      keyframes:
+        - { time: 0, value: waiting }
+        - { time: 4, value: running }
+        - { time: 6, value: done }
+    - id: worker0-clips
+      type: property
+      target: worker-0
+      property: value
+      keyframes:
+        - { time: 0, value: "W0:A" }
+        - { time: 2, value: "W0:B" }
+        - { time: 4, value: "W0:D" }
+        - { time: 6, value: "W0:idle" }
+    - id: worker1-clips
+      type: property
+      target: worker-1
+      property: value
+      keyframes:
+        - { time: 0, value: "W1:idle" }
+        - { time: 2, value: "W1:C" }
+        - { time: 4, value: "W1:idle" }

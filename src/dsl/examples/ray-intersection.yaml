@@ -1,22 +1,54 @@
 meta:
   id: ray-intersection
-  title: Ray Plane Intersection
+  title: Ray Plane Nearest Hit
   tags: [graphics, ray]
   level: beginner
   order: 5
 
+views:
+  - { id: v3d, type: 3d }
+  - { id: vinspector, type: inspector }
+
 entities:
+  - id: camera-ref
+    type: symbol
+    position: [-2.4, 1.75, 1.2]
+    color: "#60a5fa"
+    label: camera
+    props:
+      preset: camera
+      size: 0.42
+  - id: key-light
+    type: symbol
+    position: [2.5, 1.85, 1.1]
+    color: "#fbbf24"
+    label: light
+    props:
+      preset: light
+      size: 0.42
   - id: ray
     type: arrow
     anchor: [0, 1, 0]
-    direction: [1, -0.5, 0]
+    direction: [2, -1, 0]
     color: "#00c2ff"
     label: ray
   - id: hit
     type: marker
-    anchor: center
+    position: [0, 1, 0]
     color: "#ff4d4f"
     label: hit
+  - id: t-badge
+    type: badge
+    position: [1.7, 1.55, 0]
+    props:
+      value: "t=0.00"
+      color: "#1f2937"
+  - id: state-badge
+    type: badge
+    position: [1.7, 1.2, 0]
+    props:
+      value: "state:tracing"
+      color: "#3f3f46"
 
 relations:
   - id: rayHit
@@ -34,8 +66,74 @@ process:
     planeOffset: 0
     maxSteps: 6
 
+ui:
+  sliders:
+    - id: ray_angle_deg
+      label: Ray Angle (deg)
+      min: -80
+      max: -8
+      step: 1
+      value: -27
+    - id: ray_length
+      label: Ray Length
+      min: 1.2
+      max: 4.8
+      step: 0.05
+      value: 2.24
+    - id: ray_origin_y
+      label: Ray Origin Y
+      min: 0.2
+      max: 2.2
+      step: 0.05
+      value: 1.0
+  bindings:
+    - target: ray
+      property: dx
+      expr: Math.cos(degToRad(state.ray_angle_deg)) * state.ray_length
+    - target: ray
+      property: dy
+      expr: Math.sin(degToRad(state.ray_angle_deg)) * state.ray_length
+    - target: ray
+      property: dz
+      value: 0
+    - target: ray
+      property: y
+      expr: state.ray_origin_y
+
+    - target: rayHit
+      targetKind: relation
+      property: dx0
+      expr: Number(entity('ray').dx ?? 1)
+    - target: rayHit
+      targetKind: relation
+      property: dy0
+      expr: Number(entity('ray').dy ?? 0)
+    - target: rayHit
+      targetKind: relation
+      property: dz0
+      expr: Number(entity('ray').dz ?? 0)
+    - target: rayHit
+      targetKind: relation
+      property: dx1
+      value: 1
+    - target: rayHit
+      targetKind: relation
+      property: dy1
+      value: 0
+    - target: rayHit
+      targetKind: relation
+      property: dz1
+      value: 0
+
 timeline:
   duration: 5
+  markers:
+    - time: 0
+      label: Trace
+      description: March the hit point along the ray while checking the plane.
+    - time: 5
+      label: Hit
+      description: Intersection is confirmed and state switches to hit.
   tracks:
     - id: ray-steps
       type: step
@@ -58,3 +156,43 @@ timeline:
       processId: ray-hit
       events:
         - { time: 0.0, action: trace }
+    - id: hit-x
+      type: property
+      target: hit
+      property: x
+      keyframes:
+        - { time: 0, value: 0.0 }
+        - { time: 1, value: 0.4 }
+        - { time: 2, value: 0.8 }
+        - { time: 3, value: 1.2 }
+        - { time: 4, value: 1.6 }
+        - { time: 5, value: 2.0 }
+    - id: hit-y
+      type: property
+      target: hit
+      property: y
+      keyframes:
+        - { time: 0, value: 1.0 }
+        - { time: 1, value: 0.8 }
+        - { time: 2, value: 0.6 }
+        - { time: 3, value: 0.4 }
+        - { time: 4, value: 0.2 }
+        - { time: 5, value: 0.0 }
+    - id: t-value
+      type: property
+      target: t-badge
+      property: value
+      keyframes:
+        - { time: 0, value: "t=0.00" }
+        - { time: 1, value: "t=0.45" }
+        - { time: 2, value: "t=0.89" }
+        - { time: 3, value: "t=1.34" }
+        - { time: 4, value: "t=1.79" }
+        - { time: 5, value: "t=2.24" }
+    - id: hit-state
+      type: property
+      target: state-badge
+      property: value
+      keyframes:
+        - { time: 0, value: "state:tracing" }
+        - { time: 5, value: "state:hit" }

@@ -55,7 +55,8 @@ export class DSLCompiler {
     const entityMap = new Map(entities.map(e => [e.id, e]))
 
     entities.forEach(entity => {
-      graph.addEntity(this.compileEntity(entity, entityMap))
+      const compiled = this.compileEntity(entity, entityMap)
+      if (compiled) graph.addEntity(compiled)
     })
 
     relations.forEach(relation => {
@@ -288,7 +289,10 @@ export class DSLCompiler {
     return trimmed.length > 0 ? trimmed : undefined
   }
 
-  private compileEntity(entity: DSLEntity, entityMap: Map<string, DSLEntity>): SemanticEntity {
+  private compileEntity(entity: DSLEntity, entityMap: Map<string, DSLEntity>): SemanticEntity | null {
+    const mappedType = this.mapEntityType(entity.type)
+    if (!mappedType) return null
+
     const props: Record<string, unknown> = { ...(entity.props ?? {}) }
     const reserved = new Set(['id', 'type', 'anchor', 'position', 'direction', 'label', 'color', 'props'])
 
@@ -299,6 +303,9 @@ export class DSLCompiler {
 
     if (entity.label !== undefined) props.label = entity.label
     if (entity.color !== undefined) props.color = entity.color
+    if (entity.type === 'surface_field' && props.mode === undefined) {
+      props.mode = 'surface'
+    }
 
     if (Array.isArray(entity.position) && entity.position.length >= 3) {
       props.x = Number(entity.position[0] ?? 0)
@@ -319,7 +326,7 @@ export class DSLCompiler {
 
     return {
       id: entity.id,
-      type: this.mapEntityType(entity.type),
+      type: mappedType,
       props,
     }
   }
@@ -336,11 +343,15 @@ export class DSLCompiler {
     }
   }
 
-  private mapEntityType(type: string): EntityType {
+  private mapEntityType(type: string): EntityType | null {
     switch (type) {
       case 'node':
       case 'point':
+      case 'line':
+      case 'plane':
+      case 'model':
       case 'arrow':
+      case 'symbol':
       case 'label':
       case 'marker':
       case 'badge':
@@ -348,10 +359,12 @@ export class DSLCompiler {
       case 'state_overlay':
       case 'trace_trail':
       case 'scalar_field':
+      case 'surface_field':
+      case 'vector_field':
       case 'sample_probe':
         return type
       default:
-        return 'node'
+        return null
     }
   }
 

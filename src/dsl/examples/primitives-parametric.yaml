@@ -1,0 +1,198 @@
+meta:
+  id: primitives-parametric
+  title: Primitives and Parametric Controls
+  tags: [geometry, primitives, parametric]
+  level: beginner
+  order: 6
+
+views:
+  - { id: v3d, type: 3d, overlays: [coordinate_frame] }
+  - { id: vplot, type: plot }
+  - { id: vinspector, type: inspector }
+
+entities:
+  - id: origin
+    type: marker
+    position: [0, 0, 0]
+    color: "#f8fafc"
+    label: O
+
+  - id: focus
+    type: point
+    position: [1.4, 0.6, 0.5]
+    props:
+      color: "#22d3ee"
+
+  - id: segment
+    type: line
+    props:
+      x0: 0
+      y0: 0
+      z0: 0
+      x1: 1.4
+      y1: 0.6
+      z1: 0.5
+      color: "#38bdf8"
+
+  - id: base-plane
+    type: plane
+    position: [0, -0.02, 0]
+    props:
+      width: 4
+      depth: 4
+      opacity: 0.35
+      color: "#60a5fa"
+      wireframe: false
+
+  - id: demo-model
+    type: model
+    position: [1.3, 0.45, -1.1]
+    props:
+      primitive: box
+      size: [0.86, 0.86, 0.86]
+      scale: 1
+      ry: 0
+      color: "#34d399"
+      metalness: 0.18
+      roughness: 0.72
+      opacity: 0.95
+
+  - id: param-badge
+    type: badge
+    position: [2.35, 1.7, 0.1]
+    props:
+      value: "p=(1.40, 0.60, 0.50)"
+      color: "#1e293b"
+
+  - id: primitive-badge
+    type: badge
+    position: [2.35, 1.35, 0.1]
+    props:
+      value: "primitive: box"
+      color: "#334155"
+
+relations:
+  - id: dist-origin-focus
+    type: measureDistance
+    source: origin
+    target: focus
+    props:
+      unit: u
+      color: "#f97316"
+
+ui:
+  sliders:
+    - id: point_x
+      label: Point X
+      min: -2.5
+      max: 2.5
+      step: 0.05
+      value: 1.4
+    - id: point_y
+      label: Point Y
+      min: 0
+      max: 2
+      step: 0.05
+      value: 0.6
+    - id: point_z
+      label: Point Z
+      min: -2.5
+      max: 2.5
+      step: 0.05
+      value: 0.5
+    - id: plane_size
+      label: Plane Size
+      min: 1.5
+      max: 7
+      step: 0.1
+      value: 4
+    - id: model_scale
+      label: Model Scale
+      min: 0.3
+      max: 2
+      step: 0.02
+      value: 1
+    - id: model_rot_deg
+      label: Model Yaw (deg)
+      min: -180
+      max: 180
+      step: 1
+      value: 0
+    - id: model_opacity
+      label: Model Opacity
+      min: 0.15
+      max: 1
+      step: 0.01
+      value: 0.95
+  bindings:
+    - target: focus
+      property: x
+      expr: state.point_x
+    - target: focus
+      property: y
+      expr: state.point_y
+    - target: focus
+      property: z
+      expr: state.point_z
+
+    - target: segment
+      property: x1
+      expr: Number(entity('focus').x ?? 0)
+    - target: segment
+      property: y1
+      expr: Number(entity('focus').y ?? 0)
+    - target: segment
+      property: z1
+      expr: Number(entity('focus').z ?? 0)
+
+    - target: base-plane
+      property: width
+      expr: state.plane_size
+    - target: base-plane
+      property: depth
+      expr: state.plane_size
+
+    - target: demo-model
+      property: scale
+      expr: state.model_scale
+    - target: demo-model
+      property: ry
+      expr: degToRad(state.model_rot_deg)
+    - target: demo-model
+      property: opacity
+      expr: state.model_opacity
+
+    - target: param-badge
+      property: value
+      expr: "'p=(' + formatNumber(state.point_x, 2) + ', ' + formatNumber(state.point_y, 2) + ', ' + formatNumber(state.point_z, 2) + ')'"
+
+timeline:
+  duration: 8
+  loop: true
+  speed: 1
+  markers:
+    - { time: 0, label: Box, description: "Start from box primitive." }
+    - { time: 2, label: Sphere, description: "Switch to sphere." }
+    - { time: 4, label: Cylinder, description: "Switch to cylinder." }
+    - { time: 6, label: Torus, description: "Switch to torus." }
+  tracks:
+    - id: model-primitive
+      type: property
+      target: demo-model
+      property: primitive
+      keyframes:
+        - { time: 0, value: box, easing: step }
+        - { time: 2, value: sphere, easing: step }
+        - { time: 4, value: cylinder, easing: step }
+        - { time: 6, value: torus, easing: step }
+        - { time: 8, value: box, easing: step }
+    - id: primitive-badge-value
+      type: property
+      target: primitive-badge
+      property: value
+      keyframes:
+        - { time: 0, value: "primitive: box", easing: step }
+        - { time: 2, value: "primitive: sphere", easing: step }
+        - { time: 4, value: "primitive: cylinder", easing: step }
+        - { time: 6, value: "primitive: torus", easing: step }
+        - { time: 8, value: "primitive: box", easing: step }

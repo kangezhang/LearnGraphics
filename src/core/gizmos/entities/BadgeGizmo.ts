@@ -12,24 +12,28 @@ export class BadgeGizmo extends BaseGizmo {
   private ctx!: CanvasRenderingContext2D
   private normalBg = '#2255cc'
   private selectedBg = '#ff8800'
+  private currentValue = '?'
+  private currentBg = this.normalBg
+  private readonly font = 'bold 28px sans-serif'
+  private readonly canvasHeight = 64
 
   build(entity: SemanticEntity): THREE.Object3D[] {
     const pos = this.getPosition(entity)
     const p = entity.props as Record<string, unknown>
 
     this.canvas = document.createElement('canvas')
-    this.canvas.width = 128
-    this.canvas.height = 64
+    this.canvas.width = 192
+    this.canvas.height = this.canvasHeight
     this.ctx = this.canvas.getContext('2d')!
 
-    const value = String(p.value ?? '?')
-    const bg = String(p.color ?? this.normalBg)
-    this.drawBadge(value, bg)
+    this.currentValue = String(p.value ?? '?')
+    this.currentBg = String(p.color ?? this.normalBg)
+    this.drawBadge(this.currentValue, this.currentBg)
 
     const texture = new THREE.CanvasTexture(this.canvas)
     const mat = new THREE.SpriteMaterial({ map: texture, depthTest: false })
     this.sprite = new THREE.Sprite(mat)
-    this.sprite.scale.set(0.5, 0.25, 1)
+    this.updateSpriteScale()
     this.sprite.position.copy(pos)
     this.sprite.userData['gizmoId'] = this.id
 
@@ -41,18 +45,17 @@ export class BadgeGizmo extends BaseGizmo {
     const pos = this.getPosition(entity)
     this.sprite.position.copy(pos)
     const p = entity.props as Record<string, unknown>
-    const value = String(p.value ?? '?')
-    const bg = this.selected ? this.selectedBg : String(p.color ?? this.normalBg)
-    this.drawBadge(value, bg)
+    this.currentValue = String(p.value ?? '?')
+    this.currentBg = String(p.color ?? this.normalBg)
+    this.drawBadge(this.currentValue, this.selected ? this.selectedBg : this.currentBg)
+    this.updateSpriteScale()
     ;(this.sprite.material as THREE.SpriteMaterial).map!.needsUpdate = true
   }
 
   protected onSelectionChange(selected: boolean): void {
-    const p = this.sprite.userData as Record<string, unknown>
-    void p // trigger redraw via updateFromSemantic pattern
-    const mat = this.sprite.material as THREE.SpriteMaterial
-    // Tint the sprite color instead of redrawing canvas
-    mat.color.set(selected ? this.selectedBg : '#ffffff')
+    this.drawBadge(this.currentValue, selected ? this.selectedBg : this.currentBg)
+    this.updateSpriteScale()
+    ;(this.sprite.material as THREE.SpriteMaterial).map!.needsUpdate = true
   }
 
   private getPosition(entity: SemanticEntity): THREE.Vector3 {
@@ -62,6 +65,7 @@ export class BadgeGizmo extends BaseGizmo {
 
   private drawBadge(value: string, bg: string): void {
     const { ctx, canvas } = this
+    this.resizeCanvasForText(value)
     const w = canvas.width
     const h = canvas.height
     const r = 12
@@ -85,10 +89,30 @@ export class BadgeGizmo extends BaseGizmo {
 
     // Text
     ctx.fillStyle = '#ffffff'
-    ctx.font = 'bold 28px sans-serif'
+    ctx.font = this.font
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(value, w / 2, h / 2)
+  }
+
+  private resizeCanvasForText(value: string): void {
+    const { ctx, canvas } = this
+    ctx.font = this.font
+    const paddingX = 24
+    const minWidth = 128
+    const maxWidth = 420
+    const measured = Math.ceil(ctx.measureText(value).width + paddingX * 2)
+    const width = Math.max(minWidth, Math.min(maxWidth, measured))
+    if (canvas.width !== width || canvas.height !== this.canvasHeight) {
+      canvas.width = width
+      canvas.height = this.canvasHeight
+    }
+  }
+
+  private updateSpriteScale(): void {
+    const heightWorld = 0.25
+    const aspect = this.canvas.width / Math.max(1, this.canvas.height)
+    this.sprite.scale.set(heightWorld * aspect, heightWorld, 1)
   }
 
   dispose(): void {

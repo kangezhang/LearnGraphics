@@ -35,6 +35,26 @@ export abstract class BaseRelationGizmo implements IRelationGizmo {
 
   protected abstract onSelectionChange(selected: boolean): void
 
+  protected configureOverlayObjects(objects: THREE.Object3D[], renderOrder = 50): void {
+    for (const object of objects) {
+      this.configureOverlayObject(object, renderOrder)
+    }
+  }
+
+  protected configureOverlayObject(object: THREE.Object3D, renderOrder = 50): void {
+    object.renderOrder = renderOrder
+    object.traverse(node => {
+      const holder = node as { material?: THREE.Material | THREE.Material[] }
+      const material = holder.material
+      if (!material) return
+      if (Array.isArray(material)) {
+        material.forEach(mat => this.configureOverlayMaterial(mat))
+      } else {
+        this.configureOverlayMaterial(material)
+      }
+    })
+  }
+
   getObjects(): THREE.Object3D[] {
     return this.objects
   }
@@ -52,5 +72,24 @@ export abstract class BaseRelationGizmo implements IRelationGizmo {
       })
     })
     this.objects = []
+  }
+
+  private configureOverlayMaterial(material: THREE.Material): void {
+    const overlay = material as THREE.Material & {
+      depthWrite?: boolean
+      depthTest?: boolean
+      transparent?: boolean
+      polygonOffset?: boolean
+      polygonOffsetFactor?: number
+      polygonOffsetUnits?: number
+      needsUpdate?: boolean
+    }
+    overlay.depthWrite = false
+    overlay.depthTest = true
+    overlay.transparent = true
+    overlay.polygonOffset = true
+    overlay.polygonOffsetFactor = -0.5
+    overlay.polygonOffsetUnits = -1
+    overlay.needsUpdate = true
   }
 }

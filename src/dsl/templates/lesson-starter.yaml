@@ -1,0 +1,129 @@
+# LearnGraphics lesson starter template
+# Copy this file to src/dsl/examples/<your-lesson-id>.yaml and replace placeholders.
+
+meta:
+  id: lesson-id
+  title: Lesson Title
+  tags: [domain, topic]
+  level: beginner
+  order: 100
+
+views:
+  - { id: v3d, type: 3d }
+  - { id: vplot, type: plot }
+  - { id: vinspector, type: inspector }
+  # Add graph only when you model node/link topology.
+  # - { id: vgraph, type: graph }
+
+entities:
+  # --- Recommended global symbols (cross-course consistent vocabulary) ---
+  - id: cam-main
+    type: symbol
+    position: [-2.8, 1.8, 1.0]
+    color: "#60a5fa"
+    label: camera
+    props: { preset: camera, size: 0.42 }
+
+  - id: light-key
+    type: symbol
+    position: [2.8, 1.8, 1.0]
+    color: "#fbbf24"
+    label: key light
+    props: { preset: light, size: 0.42 }
+
+  - id: target-main
+    type: symbol
+    position: [0, 0.1, 0]
+    color: "#f43f5e"
+    label: target
+    props: { preset: target, size: 0.36 }
+
+  - id: origin-ref
+    type: symbol
+    position: [0, -0.05, 0]
+    color: "#22d3ee"
+    label: origin
+    props: { preset: origin, size: 0.32 }
+
+  # --- Your lesson entities ---
+  - id: focus-point
+    type: marker
+    position: [1.5, 0.6, 0]
+    color: "#34d399"
+    label: focus
+
+  - id: value-badge
+    type: badge
+    position: [1.8, 1.3, 0]
+    props:
+      value: "value = ?"
+      color: "#334155"
+
+  # Optional geometry primitives:
+  # - id: base-line
+  #   type: line
+  #   props: { x0: 0, y0: 0, z0: 0, x1: 1.5, y1: 0.6, z1: 0.0, color: "#38bdf8" }
+  # - id: base-plane
+  #   type: plane
+  #   position: [0, -0.02, 0]
+  #   props: { width: 3, depth: 3, opacity: 0.35, color: "#60a5fa" }
+  # - id: target-model
+  #   type: model
+  #   position: [1.1, 0.45, -0.8]
+  #   props: { primitive: box, size: [0.8, 0.8, 0.8], scale: 1, color: "#34d399" }
+
+relations:
+  # Add lesson-specific relations here.
+  # Example:
+  # - { id: rel-1, type: measureDistance, source: focus-point, target: target-main, props: { color: "#00ccff", unit: u } }
+
+ui:
+  # constants are shared across expressions.
+  constants:
+    base: 1
+
+  sliders:
+    - id: alpha
+      label: Alpha
+      min: 0
+      max: 1
+      step: 0.01
+      value: 0.5
+    - id: radius
+      label: Radius
+      min: 0.5
+      max: 3
+      step: 0.05
+      value: 1.5
+
+  bindings:
+    # Move focus-point with a polar param (radius + alpha)
+    - target: focus-point
+      property: x
+      expr: "Math.cos(state.alpha * Math.PI * 2) * state.radius"
+    - target: focus-point
+      property: y
+      expr: "Math.sin(state.alpha * Math.PI * 2) * state.radius * 0.4 + 0.6"
+    - target: focus-point
+      property: z
+      value: 0
+    - target: value-badge
+      property: value
+      expr: "'value = ' + formatNumber(state.radius, 2)"
+
+timeline:
+  duration: 6
+  loop: false
+  speed: 1
+  markers:
+    - { time: 0, label: Start, description: "Initial state and symbol references." }
+    - { time: 3, label: Observe, description: "Track focus-point movement and linked value." }
+    - { time: 6, label: Wrap, description: "Summarize what changed and why." }
+  tracks:
+    - id: value-label
+      type: property
+      target: value-badge
+      property: value
+      keyframes:
+        - { time: 0, value: "value = 0.50" }
+        - { time: 6, value: "value = 1.50" }

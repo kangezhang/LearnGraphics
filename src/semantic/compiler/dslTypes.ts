@@ -35,6 +35,41 @@ export interface DSLRelation {
   [key: string]: unknown
 }
 
+export interface DSLUIBinding {
+  id?: string
+  target: string
+  targetKind?: 'entity' | 'relation'
+  property: string
+  expr?: string
+  value?: number | string | boolean
+}
+
+export interface DSLUISlider {
+  id: string
+  label: string
+  min: number
+  max: number
+  step?: number
+  value: number
+  bindings?: DSLUIBinding[]
+}
+
+export type DSLViewType = '3d' | 'graph' | 'inspector' | 'plot'
+
+export interface DSLView {
+  id: string
+  type: DSLViewType
+  camera?: Record<string, unknown>
+  overlays?: string[]
+  [key: string]: unknown
+}
+
+export interface DSLUIConfig {
+  constants?: Record<string, number | string | boolean>
+  sliders?: DSLUISlider[]
+  bindings?: DSLUIBinding[]
+}
+
 export interface LessonDSL {
   meta: LessonMetaDSL
   entities?: DSLEntity[]
@@ -45,8 +80,8 @@ export interface LessonDSL {
     config?: Record<string, unknown>
     [key: string]: unknown
   }
-  views?: Array<Record<string, unknown>>
-  ui?: Record<string, unknown>
+  views?: DSLView[]
+  ui?: DSLUIConfig
   timeline?: DSLTimeline
 }
 

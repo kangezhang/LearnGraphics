@@ -40,6 +40,10 @@ export class GraphView implements IView {
     this.draw()
   }
 
+  onTimelineTick(_time: number): void {
+    this.draw()
+  }
+
   loadGraph(graph: SemanticGraph): void {
     this.graph = graph
     this.relations = graph.allRelations()

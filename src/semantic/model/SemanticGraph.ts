@@ -2,7 +2,11 @@ export type EntityType =
   | 'node'
   | 'edge'
   | 'point'
+  | 'line'
+  | 'plane'
+  | 'model'
   | 'arrow'
+  | 'symbol'
   | 'label'
   | 'marker'
   | 'badge'
@@ -10,6 +14,8 @@ export type EntityType =
   | 'state_overlay'
   | 'trace_trail'
   | 'scalar_field'
+  | 'surface_field'
+  | 'vector_field'
   | 'sample_probe'
 
 export interface SemanticEntity {

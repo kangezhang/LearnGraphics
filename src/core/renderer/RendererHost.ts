@@ -69,6 +69,10 @@ export class RendererHost {
     this.renderer.dispose()
   }
 
+  resize(width?: number, height?: number): void {
+    this.handleResize(width, height)
+  }
+
   private tick = (time: number) => {
     if (!this.running) return
     const dt = Math.max(0, Math.min(0.05, (time - this.lastTime) / 1000))
@@ -78,11 +82,11 @@ export class RendererHost {
     requestAnimationFrame(this.tick)
   }
 
-  private handleResize() {
-    const width = this.canvas.clientWidth || this.canvas.parentElement?.clientWidth || window.innerWidth
-    const height = this.canvas.clientHeight || this.canvas.parentElement?.clientHeight || window.innerHeight
-    this.renderer.setSize(width, height, false)
-    this.camera.aspect = width / Math.max(height, 1)
+  private handleResize(width?: number, height?: number) {
+    const nextWidth = width ?? (this.canvas.clientWidth || this.canvas.parentElement?.clientWidth || window.innerWidth)
+    const nextHeight = height ?? (this.canvas.clientHeight || this.canvas.parentElement?.clientHeight || window.innerHeight)
+    this.renderer.setSize(nextWidth, nextHeight, false)
+    this.camera.aspect = nextWidth / Math.max(nextHeight, 1)
     this.camera.updateProjectionMatrix()
   }
 }

@@ -19,6 +19,9 @@ export interface TimelineRuntimeOptions {
   loop?: boolean
   speed?: number
   markers?: TimelineMarker[]
+  autoPauseAtMarkers?: boolean
+  markerPauseMs?: number
+  skipInitialMarkerPause?: boolean
 }
 
 export interface SerializedTrack {
@@ -51,9 +54,14 @@ export class TimelineRuntime {
   private _rafId: number | null = null
   private _lastTs: number | null = null
   private _markers: TimelineMarker[] = []
+  private _duration: number
+  private _loop: boolean
+  private _autoPauseAtMarkers: boolean
+  private _markerPauseMs: number
+  private _skipInitialMarkerPause: boolean
+  private _pausedMarkerTimes = new Set<number>()
+  private _resumeTimer: number | null = null
 
-  readonly duration: number
-  readonly loop: boolean
   speed: number
 
   private tickHandlers: Array<(time: number) => void> = []
@@ -62,10 +70,13 @@ export class TimelineRuntime {
   private endHandlers: Array<() => void> = []
 
   constructor(opts: TimelineRuntimeOptions) {
-    this.duration = opts.duration
-    this.loop = opts.loop ?? false
+    this._duration = Math.max(0, opts.duration)
+    this._loop = opts.loop ?? false
     this.speed = opts.speed ?? 1
     this._markers = opts.markers ? [...opts.markers].sort((a, b) => a.time - b.time) : []
+    this._autoPauseAtMarkers = opts.autoPauseAtMarkers ?? true
+    this._markerPauseMs = Math.max(0, opts.markerPauseMs ?? 700)
+    this._skipInitialMarkerPause = opts.skipInitialMarkerPause ?? true
   }
 
   // ── Marker management ─────────────────────────────────────────────────────
@@ -81,6 +92,20 @@ export class TimelineRuntime {
 
   getMarkers(): readonly TimelineMarker[] {
     return this._markers
+  }
+
+  configureMarkerAutoPause(opts: {
+    enabled?: boolean
+    pauseMs?: number
+    skipInitialMarkerPause?: boolean
+  }): void {
+    if (typeof opts.enabled === 'boolean') this._autoPauseAtMarkers = opts.enabled
+    if (typeof opts.pauseMs === 'number' && Number.isFinite(opts.pauseMs)) {
+      this._markerPauseMs = Math.max(0, opts.pauseMs)
+    }
+    if (typeof opts.skipInitialMarkerPause === 'boolean') {
+      this._skipInitialMarkerPause = opts.skipInitialMarkerPause
+    }
   }
 
   getTracks(): ReadonlyMap<string, Track> {
@@ -167,6 +192,8 @@ export class TimelineRuntime {
   }
 
   applySerialized(data: SerializedTimeline): void {
+    this._duration = Math.max(0, data.duration)
+    this._loop = data.loop
     this.speed = data.speed
     this._markers = data.markers.map(m => ({ ...m })).sort((a, b) => a.time - b.time)
     this.clearTracks()
@@ -183,6 +210,7 @@ export class TimelineRuntime {
 
   play(): void {
     if (this._state === 'playing') return
+    this._clearResumeTimer()
     if (this._time >= this.duration) this._seekInternal(0)
     this._setState('playing')
     this._lastTs = null
@@ -196,6 +224,7 @@ export class TimelineRuntime {
   }
 
   stop(): void {
+    this._clearResumeTimer()
     this._cancelRaf()
     this._seekInternal(0)
     this._setState('idle')
@@ -203,6 +232,13 @@ export class TimelineRuntime {
 
   seek(time: number): void {
     const clamped = Math.max(0, Math.min(this.duration, time))
+    if (clamped < this._time - 1e-6) {
+      this._pausedMarkerTimes = new Set(
+        this._markers
+          .filter(marker => marker.time <= clamped + 1e-6)
+          .map(marker => marker.time)
+      )
+    }
     this._seekInternal(clamped)
     this._emitTick()
   }
@@ -222,6 +258,8 @@ export class TimelineRuntime {
   get time(): number { return this._time }
   get state(): PlayState { return this._state }
   get progress(): number { return this.duration > 0 ? this._time / this.duration : 0 }
+  get duration(): number { return this._duration }
+  get loop(): boolean { return this._loop }
 
   // ── Event subscription ────────────────────────────────────────────────────
 
@@ -236,6 +274,7 @@ export class TimelineRuntime {
   }
 
   dispose(): void {
+    this._clearResumeTimer()
     this._cancelRaf()
     this.tickHandlers = []
     this.eventHandlers = []
@@ -248,16 +287,36 @@ export class TimelineRuntime {
 
   private _tick = (ts: number): void => {
     if (this._lastTs === null) this._lastTs = ts
+    const prevTime = this._time
     const dt = ((ts - this._lastTs) / 1000) * this.speed
     this._lastTs = ts
 
-    this._time = Math.min(this._time + dt, this.duration)
+    const nextTime = Math.min(prevTime + dt, this.duration)
+    const pauseMarker = this._findPauseMarkerBetween(prevTime, nextTime)
+    this._time = pauseMarker?.time ?? nextTime
     this._emitTick()
     this._drainEvents()
+
+    if (pauseMarker) {
+      this._pausedMarkerTimes.add(pauseMarker.time)
+      this._cancelRaf()
+      this._setState('paused')
+      if (this._markerPauseMs > 0) {
+        const markerTime = pauseMarker.time
+        this._resumeTimer = window.setTimeout(() => {
+          this._resumeTimer = null
+          if (this._state === 'paused' && Math.abs(this._time - markerTime) <= 1e-6) {
+            this.play()
+          }
+        }, this._markerPauseMs)
+      }
+      return
+    }
 
     if (this._time >= this.duration) {
       if (this.loop) {
         this._seekInternal(0)
+        this._pausedMarkerTimes.clear()
       } else {
         this._cancelRaf()
         this._setState('idle')
@@ -303,6 +362,26 @@ export class TimelineRuntime {
       this._rafId = null
     }
     this._lastTs = null
+  }
+
+  private _findPauseMarkerBetween(fromTime: number, toTime: number): TimelineMarker | null {
+    if (!this._autoPauseAtMarkers || this._markers.length === 0) return null
+    if (toTime <= fromTime + 1e-6) return null
+    for (const marker of this._markers) {
+      if (this._skipInitialMarkerPause && marker.time <= 1e-6) continue
+      if (this._pausedMarkerTimes.has(marker.time)) continue
+      if (marker.time > fromTime + 1e-6 && marker.time <= toTime + 1e-6) {
+        return marker
+      }
+    }
+    return null
+  }
+
+  private _clearResumeTimer(): void {
+    if (this._resumeTimer !== null) {
+      window.clearTimeout(this._resumeTimer)
+      this._resumeTimer = null
+    }
   }
 
   private _nearestStepTime(dir: 1 | -1): number | undefined {

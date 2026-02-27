@@ -3,7 +3,11 @@ import type { SemanticEntity, SemanticRelation } from '@/semantic/model/Semantic
 import type { BaseGizmo } from './BaseGizmo'
 import { NodeGizmo } from './entities/NodeGizmo'
 import { PointGizmo } from './entities/PointGizmo'
+import { LineGizmo } from './entities/LineGizmo'
+import { PlaneGizmo } from './entities/PlaneGizmo'
+import { ModelGizmo } from './entities/ModelGizmo'
 import { ArrowGizmo } from './entities/ArrowGizmo'
+import { SymbolGizmo } from './entities/SymbolGizmo'
 import { LabelGizmo } from './entities/LabelGizmo'
 import { LinkGizmo } from './entities/LinkGizmo'
 import { MarkerGizmo } from './entities/MarkerGizmo'
@@ -12,6 +16,7 @@ import { StepSequenceGizmo } from './process/StepSequenceGizmo'
 import { StateOverlayGizmo } from './process/StateOverlayGizmo'
 import { TraceTrailGizmo } from './process/TraceTrailGizmo'
 import { ScalarFieldGizmo } from './fields/ScalarFieldGizmo'
+import { VectorFieldGizmo } from './fields/VectorFieldGizmo'
 import { SampleProbeGizmo } from './fields/SampleProbeGizmo'
 import type { BaseRelationGizmo } from './relations/BaseRelationGizmo'
 import { MeasureDistanceGizmo } from './relations/MeasureDistanceGizmo'
@@ -30,8 +35,20 @@ export class GizmoFactory {
       case 'point':
         gizmo = new PointGizmo(entity)
         break
+      case 'line':
+        gizmo = new LineGizmo(entity)
+        break
+      case 'plane':
+        gizmo = new PlaneGizmo(entity)
+        break
+      case 'model':
+        gizmo = new ModelGizmo(entity)
+        break
       case 'arrow':
         gizmo = new ArrowGizmo(entity)
+        break
+      case 'symbol':
+        gizmo = new SymbolGizmo(entity)
         break
       case 'label':
         gizmo = new LabelGizmo(entity)
@@ -52,7 +69,11 @@ export class GizmoFactory {
         gizmo = new TraceTrailGizmo(entity)
         break
       case 'scalar_field':
+      case 'surface_field':
         gizmo = new ScalarFieldGizmo(entity)
+        break
+      case 'vector_field':
+        gizmo = new VectorFieldGizmo(entity)
         break
       case 'sample_probe':
         gizmo = new SampleProbeGizmo(entity)

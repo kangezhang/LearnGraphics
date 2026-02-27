@@ -21,6 +21,9 @@ export interface ScalarFieldGrid {
   max: number
 }
 
+export type ScalarFieldMode = 'plane' | 'surface' | 'both'
+export type ScalarHeightMode = 'normalized' | 'centered' | 'absolute'
+
 const DEFAULT_RESOLUTION = 48
 const DEFAULT_SIZE = 4
 
@@ -118,6 +121,45 @@ export function parseIsoLevels(
     levels.push(min + (i / (count + 1)) * (max - min))
   }
   return levels
+}
+
+export function parseScalarFieldMode(props: Record<string, unknown>): ScalarFieldMode {
+  const raw = props.mode
+  if (typeof raw === 'string') {
+    const mode = raw.toLowerCase()
+    if (mode === 'plane' || mode === 'surface' || mode === 'both') return mode
+  }
+  return 'plane'
+}
+
+export function parseScalarHeightMode(props: Record<string, unknown>): ScalarHeightMode {
+  const raw = props.heightMode
+  if (typeof raw === 'string') {
+    const mode = raw.toLowerCase()
+    if (mode === 'normalized' || mode === 'centered' || mode === 'absolute') return mode
+  }
+  return 'normalized'
+}
+
+export function mapScalarToHeight(
+  value: number,
+  min: number,
+  max: number,
+  scale: number,
+  mode: ScalarHeightMode
+): number {
+  const safeSpan = Math.max(max - min, 1e-8)
+  switch (mode) {
+    case 'centered': {
+      const center = (min + max) * 0.5
+      return ((value - center) / safeSpan) * scale
+    }
+    case 'absolute':
+      return value * scale
+    case 'normalized':
+    default:
+      return ((value - min) / safeSpan) * scale
+  }
 }
 
 export function sampleHeatColor(value: number, min: number, max: number): [number, number, number] {

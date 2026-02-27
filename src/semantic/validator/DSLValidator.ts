@@ -10,6 +10,26 @@ export interface ValidationError {
 }
 
 const ANCHOR_FUNCTIONS = new Set(['center', 'camera', 'intersection', 'closest_point', 'project'])
+const ENTITY_TYPES = new Set([
+  'node',
+  'edge',
+  'point',
+  'line',
+  'plane',
+  'model',
+  'arrow',
+  'symbol',
+  'label',
+  'marker',
+  'badge',
+  'step_sequence',
+  'state_overlay',
+  'trace_trail',
+  'scalar_field',
+  'surface_field',
+  'vector_field',
+  'sample_probe',
+])
 
 export class DSLValidator {
   validate(dsl: LessonDSL): ValidationError[] {
@@ -17,6 +37,7 @@ export class DSLValidator {
     const entities = dsl.entities ?? []
     const relations = dsl.relations ?? []
     const entityMap = new Map<string, DSLEntity>()
+    const entityIds = new Set(entities.map(entity => entity.id))
 
     if (!dsl.meta || !dsl.meta.id || !dsl.meta.title) {
       errors.push({
@@ -29,6 +50,15 @@ export class DSLValidator {
     }
 
     entities.forEach((entity, i) => {
+      if (!ENTITY_TYPES.has(entity.type)) {
+        errors.push({
+          type: 'error',
+          code: 'INVALID_SCHEMA',
+          message: `Unknown entity type "${entity.type}".`,
+          location: `entities[${i}].type`,
+          suggestion: `Use one of: ${Array.from(ENTITY_TYPES).join(', ')}.`,
+        })
+      }
       if (entityMap.has(entity.id)) {
         errors.push({
           type: 'error',
@@ -40,8 +70,8 @@ export class DSLValidator {
       } else {
         entityMap.set(entity.id, entity)
       }
-      this.validateAnchor(entity.anchor, `entities[${i}].anchor`, errors)
-      this.validateAnchor(entity.direction, `entities[${i}].direction`, errors)
+      this.validateAnchor(entity.anchor, `entities[${i}].anchor`, entityIds, errors)
+      this.validateAnchor(entity.direction, `entities[${i}].direction`, entityIds, errors)
     })
 
     relations.forEach((rel, i) => this.validateRelation(rel, i, entityMap, errors))
@@ -49,22 +79,74 @@ export class DSLValidator {
     return errors
   }
 
-  private validateAnchor(anchor: unknown, location: string, errors: ValidationError[]): void {
+  private validateAnchor(
+    anchor: unknown,
+    location: string,
+    entityIds: Set<string>,
+    errors: ValidationError[]
+  ): void {
     if (typeof anchor !== 'string') return
     const text = anchor.trim()
     if (text.length === 0) return
     if (ANCHOR_FUNCTIONS.has(text)) return
+
     const call = parseCall(text)
-    if (!call) return
-    if (!ANCHOR_FUNCTIONS.has(call.name)) {
+    if (call) {
+      if (!ANCHOR_FUNCTIONS.has(call.name)) {
+        errors.push({
+          type: 'error',
+          code: 'INVALID_ANCHOR',
+          message: `Unknown anchor function: "${call.name}".`,
+          location,
+          suggestion: 'Available functions: center, camera, intersection, closest_point, project.',
+        })
+        return
+      }
+
+      const expectedArgs = expectedAnchorArity(call.name)
+      if (expectedArgs > 0 && call.args.length !== expectedArgs) {
+        errors.push({
+          type: 'error',
+          code: 'INVALID_ANCHOR',
+          message: `Anchor function "${call.name}" expects ${expectedArgs} arguments, got ${call.args.length}.`,
+          location,
+          suggestion: `Use "${call.name}(${new Array(expectedArgs).fill('...').join(', ')})".`,
+        })
+      }
+
+      for (const arg of call.args) {
+        if (looksLikeId(arg) && !entityIds.has(arg)) {
+          errors.push({
+            type: 'error',
+            code: 'INVALID_ANCHOR',
+            message: `Unknown anchor reference "${arg}".`,
+            location,
+            suggestion: `Available entities: ${Array.from(entityIds).join(', ') || '(none)'}`,
+          })
+        }
+      }
+      return
+    }
+
+    if (looksLikeId(text)) {
+      if (entityIds.has(text)) return
       errors.push({
         type: 'error',
         code: 'INVALID_ANCHOR',
-        message: `Unknown anchor function: "${call.name}".`,
+        message: `Unknown anchor reference "${text}".`,
         location,
-        suggestion: 'Available functions: center, camera, intersection, closest_point, project.',
+        suggestion: `Available entities: ${Array.from(entityIds).join(', ') || '(none)'}`,
       })
+      return
     }
+
+    errors.push({
+      type: 'error',
+      code: 'INVALID_ANCHOR',
+      message: `Malformed anchor expression: "${text}".`,
+      location,
+      suggestion: 'Use center/camera, entity id, or function calls like project(a, b).',
+    })
   }
 
   private validateRelation(
@@ -191,4 +273,17 @@ function collectRefs(value: unknown, out: Set<string>): void {
 
 function looksLikeId(token: string): boolean {
   return /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(token)
+}
+
+function expectedAnchorArity(name: string): number {
+  switch (name) {
+    case 'project':
+      return 2
+    case 'closest_point':
+      return 3
+    case 'intersection':
+      return 4
+    default:
+      return 0
+  }
 }

@@ -61,6 +61,192 @@ body {
   padding-right: 4px;
 }
 
+.lesson-controls {
+  margin-top: 8px;
+  border-top: 1px solid var(--stroke);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lesson-controls-title {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.lesson-controls-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.lesson-controls-reset-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid #2a3045;
+  background: #0f1722;
+  color: #9ca3af;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.lesson-controls-reset-btn:hover {
+  border-color: #3a4460;
+  color: #c2d1ea;
+}
+
+.lesson-control-row {
+  padding: 8px 10px;
+}
+
+.coordinate-frame-btn {
+  position: absolute;
+  top: 8px;
+  right: 44px;
+  z-index: 30;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #2a3045;
+  background: #0f1722;
+  color: #9ca3af;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.coordinate-frame-btn:hover {
+  border-color: #3a4460;
+  color: #c2d1ea;
+}
+
+.coordinate-frame-btn.active {
+  background: #1f2937;
+  color: #7db3ff;
+}
+
+.coordinate-frame-btn svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.global-visual-btn {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 30;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #2a3045;
+  background: #0f1722;
+  color: #9ca3af;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.global-visual-btn:hover {
+  border-color: #3a4460;
+  color: #c2d1ea;
+}
+
+.global-visual-btn.active {
+  background: #1f2937;
+  color: #7db3ff;
+}
+
+.global-visual-btn svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+}
+
+.global-visual-btn svg circle {
+  fill: currentColor;
+  stroke: none;
+}
+
+.global-visual-panel {
+  position: absolute;
+  top: 42px;
+  right: 10px;
+  z-index: 30;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #2a3045;
+  background: rgba(13, 16, 27, 0.97);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+.global-visual-title {
+  color: #9aa7c4;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.global-visual-row {
+  padding: 8px 10px;
+}
+
+.global-visual-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.global-visual-reset-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid #2a3045;
+  background: #0f1722;
+  color: #9ca3af;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.global-visual-reset-btn:hover {
+  border-color: #3a4460;
+  color: #c2d1ea;
+}
+
+.lesson-controls-reset-btn svg,
+.global-visual-reset-btn svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .lesson-item {
   border: 1px solid var(--stroke);
   background: var(--panel, #111522);
@@ -277,4 +463,57 @@ canvas#viewer {
 .prop-val {
   color: #5bd5a1;
   font-variant-numeric: tabular-nums;
+}
+
+.lesson-doc-root {
+  max-width: 100%;
+  padding: 14px 16px 18px;
+  color: #e7ecf5;
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  line-height: 1.65;
+  font-size: 13px;
+}
+
+.lesson-doc-root h1,
+.lesson-doc-root h2,
+.lesson-doc-root h3 {
+  margin: 0 0 10px;
+  line-height: 1.35;
+}
+
+.lesson-doc-root h1 {
+  font-size: 18px;
+}
+
+.lesson-doc-root h2 {
+  font-size: 15px;
+  color: #7db3ff;
+}
+
+.lesson-doc-root h3 {
+  font-size: 13px;
+  color: #9aa7c4;
+}
+
+.lesson-doc-root p {
+  margin: 0 0 10px;
+}
+
+.lesson-doc-root ul {
+  margin: 0 0 10px;
+  padding-left: 18px;
+}
+
+.lesson-doc-root li {
+  margin: 0 0 4px;
+}
+
+.lesson-doc-root code {
+  background: #172033;
+  border: 1px solid #263044;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #b9d6ff;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 12px;
 }

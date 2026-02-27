@@ -1,4 +1,17 @@
-import { Scene, AmbientLight, DirectionalLight, Vector2, Vector3, Raycaster, Plane } from 'three'
+import {
+  Scene,
+  AmbientLight,
+  DirectionalLight,
+  Vector2,
+  Vector3,
+  Raycaster,
+  Plane,
+  Group,
+  AxesHelper,
+  GridHelper,
+  Material,
+  LineBasicMaterial,
+} from 'three'
 import type { IView } from '@/views/IView'
 import type { SemanticGraph } from '@/semantic/model/SemanticGraph'
 import { RendererHost } from '@/core/renderer/RendererHost'
@@ -8,7 +21,9 @@ import type { BaseGizmo } from '@/core/gizmos/BaseGizmo'
 import type { BaseRelationGizmo } from '@/core/gizmos/relations/BaseRelationGizmo'
 import { NodeGizmo } from '@/core/gizmos/entities/NodeGizmo'
 import { evaluateScalarAt, parseScalarFieldParams } from '@/core/gizmos/fields/scalarFieldMath'
+import { evaluateVectorAt, parseVectorFieldParams } from '@/core/gizmos/fields/vectorFieldMath'
 import type { SemanticEntity } from '@/semantic/model/SemanticGraph'
+import type { TimelineRuntime } from '@/timeline/runtime/TimelineRuntime'
 
 export class View3D implements IView {
   readonly id = 'view3d'
@@ -23,6 +38,9 @@ export class View3D implements IView {
   private pointer = new Vector2()
   private raycaster = new Raycaster()
   private groundPlane = new Plane(new Vector3(0, 1, 0), 0)
+  private timeline: TimelineRuntime | null = null
+  private coordinateFrameGroup = new Group()
+  private coordinateFrameVisible = true
 
   mount(container: HTMLElement): void {
     const canvas = document.createElement('canvas')
@@ -37,6 +55,9 @@ export class View3D implements IView {
     const dir = new DirectionalLight(0xffffff, 1.2)
     dir.position.set(5, 8, 5)
     this.scene.add(ambient, dir)
+    this.buildCoordinateFrame()
+    this.scene.add(this.coordinateFrameGroup)
+    this.coordinateFrameGroup.visible = this.coordinateFrameVisible
 
     const controls = createOrbitControls(this.host.getCamera(), canvas)
     this.host.setUpdate(() => controls.update())
@@ -44,10 +65,36 @@ export class View3D implements IView {
     this.host.start()
   }
 
-  resize(_w: number, _h: number): void {}
+  resize(w: number, h: number): void {
+    this.host?.resize(w, h)
+  }
 
   onSelectionChange(ids: string[]): void {
     this.gizmos.forEach((gizmo, id) => gizmo.setSelected(ids.includes(id)))
+  }
+
+  loadTimeline(runtime: TimelineRuntime | null): void {
+    this.timeline = runtime
+  }
+
+  onTimelineTick(time: number): void {
+    if (!this.timeline || !this.graph) return
+    const evalResult = this.timeline.evaluateAt(time)
+    const changedEntityIds = new Set<string>()
+
+    for (const prop of evalResult.properties) {
+      const entity = this.graph.getEntity(prop.targetId)
+      if (!entity) continue
+      setPathValue(entity.props, prop.propName, prop.value)
+      applySemanticProperty(entity, prop.propName, prop.value)
+      changedEntityIds.add(entity.id)
+    }
+
+    this.applyEntityChanges(changedEntityIds)
+  }
+
+  onGraphMutation(changedEntityIds: string[]): void {
+    this.applyEntityChanges(new Set(changedEntityIds))
   }
 
   loadGraph(graph: SemanticGraph): void {
@@ -92,6 +139,17 @@ export class View3D implements IView {
     })
 
     this.refreshProbeSamples()
+  }
+
+  refreshAllVisuals(): void {
+    if (!this.graph) return
+    const changedEntityIds = new Set(this.graph.allEntities().map(entity => entity.id))
+    this.applyEntityChanges(changedEntityIds)
+  }
+
+  setCoordinateFrameVisible(visible: boolean): void {
+    this.coordinateFrameVisible = visible
+    this.coordinateFrameGroup.visible = visible
   }
 
   /** Update a node gizmo's color by entity id */
@@ -140,11 +198,16 @@ export class View3D implements IView {
 
     const scalarFields = this.graph
       .allEntities()
-      .filter(entity => entity.type === 'scalar_field')
-    const firstField = scalarFields[0]
-    if (!firstField) return
+      .filter(entity => entity.type === 'scalar_field' || entity.type === 'surface_field')
+    const vectorFields = this.graph
+      .allEntities()
+      .filter(entity => entity.type === 'vector_field')
+    const firstScalarField = scalarFields[0]
+    const firstVectorField = vectorFields[0]
+    if (!firstScalarField && !firstVectorField) return
 
-    const fieldById = new Map(scalarFields.map(field => [field.id, field]))
+    const scalarById = new Map(scalarFields.map(field => [field.id, field]))
+    const vectorById = new Map(vectorFields.map(field => [field.id, field]))
     const probes = this.graph.allEntities().filter(entity => entity.type === 'sample_probe')
 
     for (const probe of probes) {
@@ -154,15 +217,34 @@ export class View3D implements IView {
 
       const px = followMouse ? worldX : Number(probe.props.x ?? 0)
       const pz = followMouse ? worldZ : Number(probe.props.z ?? 0)
-      const fieldId = typeof probe.props.fieldId === 'string' ? probe.props.fieldId : firstField.id
-      const field = fieldById.get(fieldId) ?? firstField
-      const value = evaluateScalarAt(parseScalarFieldParams(field.props), px, pz)
+      const fieldId = typeof probe.props.fieldId === 'string' ? probe.props.fieldId : undefined
+      const scalarField = fieldId ? scalarById.get(fieldId) : undefined
+      const vectorField = fieldId ? vectorById.get(fieldId) : undefined
+
+      let value = 0
+      let vx = 0
+      let vz = 0
+
+      if (scalarField || (!vectorField && firstScalarField)) {
+        const field = scalarField ?? firstScalarField
+        if (!field) continue
+        value = evaluateScalarAt(parseScalarFieldParams(field.props), px, pz)
+      } else {
+        const field = vectorField ?? firstVectorField
+        if (!field) continue
+        const sample = evaluateVectorAt(parseVectorFieldParams(field.props), px, pz)
+        value = sample.magnitude
+        vx = sample.vx
+        vz = sample.vz
+      }
 
       probe.props = {
         ...probe.props,
         x: px,
         z: pz,
         value,
+        vx,
+        vz,
       }
 
       this.syncEntityGizmo(probe)
@@ -175,6 +257,86 @@ export class View3D implements IView {
     if (!('updateFromSemantic' in gizmo)) return
     ;(gizmo as BaseGizmo).updateFromSemantic(entity)
   }
+
+  private syncRelationGizmos(changedEntityIds: Set<string>): void {
+    if (!this.graph) return
+
+    for (const relation of this.graph.allRelations()) {
+      if (!changedEntityIds.has(relation.sourceId) && !changedEntityIds.has(relation.targetId)) continue
+      const source = this.graph.getEntity(relation.sourceId)
+      const target = this.graph.getEntity(relation.targetId)
+      if (!source || !target) continue
+
+      const sourcePos = toVector3(source.props)
+      const targetPos = toVector3(target.props)
+      const gizmo = this.gizmos.get(relation.id)
+      if (!gizmo) continue
+
+      if ('update' in gizmo && typeof (gizmo as { update?: unknown }).update === 'function') {
+        ;(gizmo as {
+          update: (relation: import('@/semantic/model/SemanticGraph').SemanticRelation, sourcePos: Vector3, targetPos: Vector3) => void
+        }).update(relation, sourcePos, targetPos)
+        continue
+      }
+
+      if (relation.type === 'link' && 'updateFromSemantic' in gizmo) {
+        const linkEntity: SemanticEntity = {
+          id: relation.id,
+          type: 'node',
+          props: {
+            x0: sourcePos.x, y0: sourcePos.y, z0: sourcePos.z,
+            x1: targetPos.x, y1: targetPos.y, z1: targetPos.z,
+          },
+        }
+        ;(gizmo as BaseGizmo).updateFromSemantic(linkEntity)
+      }
+    }
+  }
+
+  private applyEntityChanges(changedEntityIds: Set<string>): void {
+    if (!this.graph || changedEntityIds.size === 0) return
+
+    for (const entityId of changedEntityIds) {
+      const entity = this.graph.getEntity(entityId)
+      if (!entity) continue
+      this.syncEntityGizmo(entity)
+    }
+    this.syncRelationGizmos(changedEntityIds)
+  }
+
+  private buildCoordinateFrame(): void {
+    this.coordinateFrameGroup.clear()
+
+    // Keep the world frame visible but subdued so it does not compete with lesson gizmos.
+    const axes = new AxesHelper(1.6)
+    axes.renderOrder = 1
+    axes.position.set(0, 0.001, 0)
+    const axesMaterials = Array.isArray(axes.material)
+      ? axes.material
+      : [axes.material]
+    for (const mat of axesMaterials) {
+      const axisMat = mat as LineBasicMaterial & { opacity?: number; transparent?: boolean; depthWrite?: boolean }
+      axisMat.transparent = true
+      axisMat.opacity = 0.34
+      axisMat.depthWrite = false
+      axisMat.color.multiplyScalar(0.72)
+    }
+    this.coordinateFrameGroup.add(axes)
+
+    const grid = new GridHelper(8, 8, 0x2a3855, 0x1a2335)
+    grid.position.set(0, -0.001, 0)
+    grid.renderOrder = 0
+    const materials = Array.isArray(grid.material)
+      ? grid.material
+      : [grid.material]
+    for (const mat of materials) {
+      const transparentMat = mat as Material & { opacity?: number; transparent?: boolean; depthWrite?: boolean }
+      transparentMat.transparent = true
+      transparentMat.opacity = 0.2
+      transparentMat.depthWrite = false
+    }
+    this.coordinateFrameGroup.add(grid)
+  }
 }
 
 function toBool(value: unknown, fallback: boolean): boolean {
@@ -184,4 +346,48 @@ function toBool(value: unknown, fallback: boolean): boolean {
     if (value.toLowerCase() === 'false') return false
   }
   return fallback
+}
+
+function setPathValue(target: Record<string, unknown>, path: string, value: unknown): void {
+  const parts = path.split('.').map(segment => segment.trim()).filter(Boolean)
+  if (parts.length === 0) return
+
+  let current: Record<string, unknown> = target
+  for (let i = 0; i < parts.length - 1; i++) {
+    const key = parts[i]
+    const next = current[key]
+    if (typeof next !== 'object' || next === null || Array.isArray(next)) {
+      current[key] = {}
+    }
+    current = current[key] as Record<string, unknown>
+  }
+  current[parts[parts.length - 1]] = value
+}
+
+function toVector3(props: Record<string, unknown>): Vector3 {
+  return new Vector3(
+    Number(props.x ?? 0),
+    Number(props.y ?? 0),
+    Number(props.z ?? 0)
+  )
+}
+
+function applySemanticProperty(entity: SemanticEntity, path: string, value: unknown): void {
+  if (entity.type === 'arrow' && path === 'rotation.z') {
+    const angle = Number(value)
+    if (!Number.isFinite(angle)) return
+
+    const props = entity.props
+    const rawBase = props.baseDirection
+    const base = Array.isArray(rawBase) && rawBase.length >= 3
+      ? [Number(rawBase[0]), Number(rawBase[1]), Number(rawBase[2])]
+      : [Number(props.dx ?? 1), Number(props.dy ?? 0), Number(props.dz ?? 0)]
+    props.baseDirection = base
+
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    props.dx = base[0] * cos - base[1] * sin
+    props.dy = base[0] * sin + base[1] * cos
+    props.dz = base[2]
+  }
 }

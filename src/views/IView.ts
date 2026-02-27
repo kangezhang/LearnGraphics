@@ -10,5 +10,6 @@ export interface IView {
   loadGraph(graph: SemanticGraph): void
   loadTimeline?(runtime: TimelineRuntime | null): void
   onTimelineTick?(time: number): void
+  onGraphMutation?(changedEntityIds: string[]): void
   dispose(): void
 }

@@ -76,6 +76,11 @@ export class PlotView implements IView {
     this.draw()
   }
 
+  onGraphMutation(_changedEntityIds: string[]): void {
+    this.rebuildSeries()
+    this.draw()
+  }
+
   dispose(): void {
     this.canvas?.removeEventListener('wheel', this.onWheel)
     this.canvas?.removeEventListener('mousedown', this.onMouseDown)

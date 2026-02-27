@@ -38,6 +38,7 @@ export class IntersectionMarkerGizmo extends BaseRelationGizmo {
     this.ring.userData['gizmoId'] = this.id
 
     this.objects = [...this.crossLines, this.ring]
+    this.configureOverlayObjects(this.objects, 56)
     return this.objects
   }
 

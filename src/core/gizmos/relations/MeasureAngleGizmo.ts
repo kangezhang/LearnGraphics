@@ -20,6 +20,7 @@ export class MeasureAngleGizmo extends BaseRelationGizmo {
   private readonly ARC_SEGMENTS = 32
 
   build(relation: SemanticRelation, sourcePos: THREE.Vector3, targetPos: THREE.Vector3): THREE.Object3D[] {
+    this.normalColor = parseColor((relation.props as Record<string, unknown>).color, this.normalColor)
     const vertex = this.getVertex(relation, sourcePos, targetPos)
 
     const mat = new THREE.LineBasicMaterial({ color: this.normalColor })
@@ -42,20 +43,24 @@ export class MeasureAngleGizmo extends BaseRelationGizmo {
     this.canvas.height = 64
     this.ctx = this.canvas.getContext('2d')!
     const angle = this.computeAngle(vertex, sourcePos, targetPos)
-    this.drawLabel(angle, false)
+    this.drawLabel(angle, false, relation)
 
     const texture = new THREE.CanvasTexture(this.canvas)
     const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false })
     this.sprite = new THREE.Sprite(spriteMat)
-    this.sprite.scale.set(0.7, 0.22, 1)
+    this.sprite.scale.set(0.62, 0.2, 1)
     this.sprite.position.copy(this.arcMidpoint(vertex, sourcePos, targetPos))
     this.sprite.userData['gizmoId'] = this.id
+    this.sprite.renderOrder = 53
 
     this.objects = [this.arm0, this.arm1, this.arcLine, this.sprite]
+    this.configureOverlayObjects([this.arm0, this.arm1, this.arcLine], 52)
+    this.applyArmVisibility(relation)
     return this.objects
   }
 
   update(relation: SemanticRelation, sourcePos: THREE.Vector3, targetPos: THREE.Vector3): void {
+    this.normalColor = parseColor((relation.props as Record<string, unknown>).color, this.normalColor)
     const vertex = this.getVertex(relation, sourcePos, targetPos)
     this.updateLine(this.arm0, [vertex, sourcePos])
     this.updateLine(this.arm1, [vertex, targetPos])
@@ -64,9 +69,10 @@ export class MeasureAngleGizmo extends BaseRelationGizmo {
     this.arcLine.geometry.setFromPoints(arcPoints)
 
     const angle = this.computeAngle(vertex, sourcePos, targetPos)
-    this.drawLabel(angle, this.selected)
+    this.drawLabel(angle, this.selected, relation)
     ;(this.sprite.material as THREE.SpriteMaterial).map!.needsUpdate = true
     this.sprite.position.copy(this.arcMidpoint(vertex, sourcePos, targetPos))
+    this.applyArmVisibility(relation)
   }
 
   protected onSelectionChange(selected: boolean): void {
@@ -123,18 +129,46 @@ export class MeasureAngleGizmo extends BaseRelationGizmo {
     pos.needsUpdate = true
   }
 
-  private drawLabel(angleDeg: number, selected: boolean): void {
+  private drawLabel(angleDeg: number, selected: boolean, relation: SemanticRelation): void {
     const { ctx, canvas } = this
+    const prefix = String((relation.props as Record<string, unknown>).label ?? '').trim()
+    const text = prefix.length > 0 ? `${prefix}=${angleDeg.toFixed(1)}°` : `${angleDeg.toFixed(1)}°`
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.fillStyle = selected ? '#ff8800' : '#aaff44'
-    ctx.font = 'bold 26px sans-serif'
+    ctx.fillStyle = selected ? '#ff8800' : `#${this.normalColor.getHexString()}`
+    ctx.font = 'bold 22px sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(`${angleDeg.toFixed(1)}°`, canvas.width / 2, canvas.height / 2)
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2)
   }
 
   dispose(): void {
     ;(this.sprite.material as THREE.SpriteMaterial).map?.dispose()
     super.dispose()
   }
+
+  private applyArmVisibility(relation: SemanticRelation): void {
+    const props = relation.props as Record<string, unknown>
+    const showArms = toBool(props.showArms, true)
+    this.arm0.visible = showArms
+    this.arm1.visible = showArms
+  }
+}
+
+function parseColor(value: unknown, fallback: THREE.Color): THREE.Color {
+  if (typeof value !== 'string' || value.trim().length === 0) return fallback
+  try {
+    return new THREE.Color(value)
+  } catch {
+    return fallback
+  }
+}
+
+function toBool(value: unknown, fallback: boolean): boolean {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase()
+    if (normalized === 'true') return true
+    if (normalized === 'false') return false
+  }
+  return fallback
 }

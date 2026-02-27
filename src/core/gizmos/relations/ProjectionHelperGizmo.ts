@@ -15,6 +15,7 @@ export class ProjectionHelperGizmo extends BaseRelationGizmo {
   private selectedColor = new THREE.Color(0xff8800)
 
   build(relation: SemanticRelation, sourcePos: THREE.Vector3, targetPos: THREE.Vector3): THREE.Object3D[] {
+    this.normalColor = parseColor((relation.props as Record<string, unknown>).color, this.normalColor)
     const { foot, axisDir } = this.computeProjection(relation, sourcePos, targetPos)
     const mat = () => new THREE.LineBasicMaterial({ color: this.normalColor })
 
@@ -34,10 +35,17 @@ export class ProjectionHelperGizmo extends BaseRelationGizmo {
     this.cornerLines.forEach(l => (l.userData['gizmoId'] = this.id))
 
     this.objects = [this.projLine, this.footLine, ...this.cornerLines]
+    this.configureOverlayObjects(this.objects, 51)
+    this.applyVisibility(relation)
     return this.objects
   }
 
   update(relation: SemanticRelation, sourcePos: THREE.Vector3, targetPos: THREE.Vector3): void {
+    this.normalColor = parseColor((relation.props as Record<string, unknown>).color, this.normalColor)
+    const activeColor = this.selected ? this.selectedColor : this.normalColor
+    for (const obj of [this.projLine, this.footLine, ...this.cornerLines]) {
+      ;(obj.material as THREE.LineBasicMaterial).color.copy(activeColor)
+    }
     const { foot, axisDir } = this.computeProjection(relation, sourcePos, targetPos)
     this.updateLine(this.projLine, [sourcePos, foot])
 
@@ -46,15 +54,12 @@ export class ProjectionHelperGizmo extends BaseRelationGizmo {
     const p1 = foot.clone().add(axisDir.clone().multiplyScalar(half))
     this.updateLine(this.footLine, [p0, p1])
 
-    // Rebuild corner (simple approach: dispose old, create new)
-    this.cornerLines.forEach(l => {
-      l.geometry.dispose()
-      ;(l.material as THREE.Material).dispose()
-    })
-    this.cornerLines = this.buildCorner(sourcePos, foot, axisDir)
-    this.cornerLines.forEach(l => (l.userData['gizmoId'] = this.id))
-    // Note: caller (View3D) must re-add new corner objects; for simplicity we
-    // keep the same count by updating geometry in place when possible.
+    const [seg0, seg1] = this.cornerSegments(sourcePos, foot, axisDir)
+    if (this.cornerLines.length >= 2) {
+      this.updateLine(this.cornerLines[0], seg0)
+      this.updateLine(this.cornerLines[1], seg1)
+    }
+    this.applyVisibility(relation)
   }
 
   protected onSelectionChange(selected: boolean): void {
@@ -78,15 +83,27 @@ export class ProjectionHelperGizmo extends BaseRelationGizmo {
   }
 
   private buildCorner(source: THREE.Vector3, foot: THREE.Vector3, axisDir: THREE.Vector3): THREE.Line[] {
+    const [seg0, seg1] = this.cornerSegments(source, foot, axisDir)
+    const mat = new THREE.LineBasicMaterial({ color: this.normalColor })
+    return [
+      this.makeLine(seg0, mat),
+      this.makeLine(seg1, mat),
+    ]
+  }
+
+  private cornerSegments(
+    source: THREE.Vector3,
+    foot: THREE.Vector3,
+    axisDir: THREE.Vector3
+  ): [THREE.Vector3[], THREE.Vector3[]] {
     const size = 0.1
     const toSource = source.clone().sub(foot).normalize()
     const c1 = foot.clone().add(toSource.clone().multiplyScalar(size))
     const c2 = c1.clone().add(axisDir.clone().multiplyScalar(size))
     const c3 = foot.clone().add(axisDir.clone().multiplyScalar(size))
-    const mat = new THREE.LineBasicMaterial({ color: this.normalColor })
     return [
-      this.makeLine([c1, c2], mat),
-      this.makeLine([c2, c3], mat),
+      [c1, c2],
+      [c2, c3],
     ]
   }
 
@@ -99,4 +116,31 @@ export class ProjectionHelperGizmo extends BaseRelationGizmo {
     points.forEach((p, i) => pos.setXYZ(i, p.x, p.y, p.z))
     pos.needsUpdate = true
   }
+
+  private applyVisibility(relation: SemanticRelation): void {
+    const props = relation.props as Record<string, unknown>
+    this.projLine.visible = toBool(props.showProjectionLine, true)
+    this.footLine.visible = toBool(props.showAxisLine, true)
+    const showRightAngle = toBool(props.showRightAngle, true)
+    for (const line of this.cornerLines) line.visible = showRightAngle
+  }
+}
+
+function parseColor(value: unknown, fallback: THREE.Color): THREE.Color {
+  if (typeof value !== 'string' || value.trim().length === 0) return fallback
+  try {
+    return new THREE.Color(value)
+  } catch {
+    return fallback
+  }
+}
+
+function toBool(value: unknown, fallback: boolean): boolean {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase()
+    if (normalized === 'true') return true
+    if (normalized === 'false') return false
+  }
+  return fallback
 }

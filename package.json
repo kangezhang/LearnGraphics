@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:docs-sync": "node scripts/check-doc-sync.mjs --staged",
+    "setup:hooks": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
     "@types/three": "^0.182.0",
