@@ -1,0 +1,54 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "id": "STRUCTURE_COMPLETE",
+      "description": "Lesson package must include all mandatory top-level sections.",
+      "level": "error",
+      "target": "lesson_package",
+      "check": "required_fields"
+    },
+    {
+      "id": "DURATION_MATCH",
+      "description": "Sum of segment duration must be within ±10% of requested duration.",
+      "level": "error",
+      "target": "course_plan",
+      "check": "duration_tolerance"
+    },
+    {
+      "id": "TERMINOLOGY_CONSISTENT",
+      "description": "Terms used in narration and exercises must match glossary aliases.",
+      "level": "error",
+      "target": "lesson_script",
+      "check": "terminology_consistency"
+    },
+    {
+      "id": "EXERCISE_ACTIONABLE",
+      "description": "Each exercise must include input, steps, and expected output.",
+      "level": "error",
+      "target": "exercise_set",
+      "check": "exercise_actionability"
+    },
+    {
+      "id": "RUBRIC_SCORABLE",
+      "description": "Every rubric dimension must provide criteria for score 1..5.",
+      "level": "error",
+      "target": "assessment_rubric",
+      "check": "rubric_completeness"
+    },
+    {
+      "id": "DSL_PATCH_VALID",
+      "description": "Patch must be consumable by PatchApplier and pass DSLValidator.",
+      "level": "error",
+      "target": "dsl_patch",
+      "check": "dsl_patch_compilable"
+    },
+    {
+      "id": "CHECK_QUESTION_PRESENT",
+      "description": "Every section must include at least one check question.",
+      "level": "warn",
+      "target": "lesson_script",
+      "check": "check_question_presence"
+    }
+  ]
+}

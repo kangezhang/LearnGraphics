@@ -7,6 +7,11 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "gen:course-plan": "node scripts/generate-course-plan.mjs",
+    "gen:lesson-package": "node scripts/generate-lesson-package.mjs",
+    "check:ai-assets": "node scripts/validate-ai-assets.mjs",
+    "check:course-plan-snapshots": "node scripts/check-course-plan-snapshots.mjs",
+    "check:lesson-package-snapshots": "node scripts/check-lesson-package-snapshots.mjs",
     "check:docs-sync": "node scripts/check-doc-sync.mjs --staged",
     "setup:hooks": "git config core.hooksPath .githooks"
   },

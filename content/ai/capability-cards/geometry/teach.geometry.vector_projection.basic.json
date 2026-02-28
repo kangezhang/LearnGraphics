@@ -1,0 +1,50 @@
+{
+  "capability_id": "teach.geometry.vector_projection.basic",
+  "name": "Vector Projection Basics",
+  "version": "1.0.0",
+  "domain": "geometry",
+  "level": "beginner",
+  "inputs": [
+    "learner_level",
+    "duration_min",
+    "goal"
+  ],
+  "outputs": [
+    "lesson_script",
+    "exercise_set",
+    "assessment_rubric",
+    "dsl_patch"
+  ],
+  "dependencies": [
+    "math.vector.dot_product"
+  ],
+  "constraints": [
+    "must_include_geometric_interpretation",
+    "must_include_sign_explanation"
+  ],
+  "quality_criteria": [
+    "concept_accuracy",
+    "terminology_consistency",
+    "step_actionability"
+  ],
+  "template_refs": [
+    "template.lesson.explain_then_practice.v1"
+  ],
+  "dsl_refs": [
+    "src/dsl/examples/vector-dot.yaml"
+  ],
+  "failure_codes": [
+    "TERM_INCONSISTENT",
+    "NO_ACTIONABLE_EXERCISE"
+  ],
+  "examples": [
+    {
+      "input": {
+        "duration_min": 20,
+        "goal": "understand projection length meaning"
+      },
+      "output_summary": "Explains projection as component along axis and gives 2 guided exercises."
+    }
+  ],
+  "status": "active"
+}

@@ -1,0 +1,41 @@
+{
+  "capability_id": "teach.story_context.force_split",
+  "name": "Force Decomposition Story Hook",
+  "version": "1.0.0",
+  "domain": "pedagogy",
+  "level": "beginner",
+  "inputs": [
+    "learner_level",
+    "duration_min",
+    "goal"
+  ],
+  "outputs": [
+    "lesson_script"
+  ],
+  "dependencies": [],
+  "constraints": [
+    "must_include_real_world_scenario",
+    "must_end_with_guiding_question"
+  ],
+  "quality_criteria": [
+    "context_relevance",
+    "question_clarity"
+  ],
+  "template_refs": [
+    "template.lesson.problem_driven.v1"
+  ],
+  "dsl_refs": [],
+  "failure_codes": [
+    "MISSING_HOOK",
+    "QUESTION_TOO_VAGUE"
+  ],
+  "examples": [
+    {
+      "input": {
+        "goal": "understand projection in force decomposition"
+      },
+      "output_summary": "Introduces pushing a box on a slope and asks which force contributes to motion."
+    }
+  ],
+  "status": "active"
+}

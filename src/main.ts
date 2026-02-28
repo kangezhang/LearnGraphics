@@ -1,15 +1,28 @@
 import './style.css'
-import { Shell, type LessonControlSlider, type LessonListItem } from '@/app/Shell'
+import {
+  Shell,
+  type AIPanelCreatePayload,
+  type AIPanelSettingsPayload,
+  type AIPanelUpdatePayload,
+  type LessonControlSlider,
+  type LessonListItem,
+} from '@/app/Shell'
 import { DSLParser } from '@/semantic/compiler/DSLParser'
 import { DSLCompiler } from '@/semantic/compiler/DSLCompiler'
 import type { TimelineRuntime } from '@/timeline/runtime/TimelineRuntime'
 import type { SemanticGraph } from '@/semantic/model/SemanticGraph'
 import type { BindingRegistry } from '@/semantic/bindings/BindingManager'
 import { PropertyTrack } from '@/timeline/runtime/PropertyTrack'
+import { LessonStore } from '@/ai/LessonStore'
+import { LessonAIService } from '@/ai/LessonAIService'
+import { CapabilityDriftError, DefaultCourseOrchestrator } from '@/ai/CourseOrchestrator'
+import type { GeneratedLessonPayload, StoredAILesson, StoredAILessonRevision } from '@/ai/types'
 import type { DSLUIBinding, DSLUISlider, LessonDSL } from '@/semantic/compiler/dslTypes'
 
 interface LoadedLesson {
   id: string
+  source: 'builtin' | 'ai'
+  revision: number | null
   title: string
   tags: string[]
   order: number
@@ -38,81 +51,33 @@ const lessonDocFiles = import.meta.glob('../content/lessons/*.md', {
   eager: true,
 }) as Record<string, string>
 
-const lessonDocsById = new Map<string, string>()
-for (const [path, raw] of Object.entries(lessonDocFiles)) {
-  const fileName = path.split('/').pop()
-  if (!fileName || !fileName.endsWith('.md')) continue
-  const id = fileName.slice(0, -3)
-  if (id.toLowerCase() === 'readme') continue
-  lessonDocsById.set(id, raw)
-}
-
-const loadedLessons: LoadedLesson[] = []
-const missingDocs: string[] = []
-for (const [path, raw] of Object.entries(lessonFiles)) {
-  const parsed = parser.parse(raw, 'yaml')
-  if (!parsed.lesson) {
-    console.error(`[DSL] parse failed for ${path}`, parsed.issues)
-    continue
-  }
-  if (parsed.issues.length > 0) {
-    console.warn(`[DSL] parse issues in ${path}`, parsed.issues)
-  }
-
-  const compiled = compiler.compile(parsed.lesson)
-  if (compiled.diagnostics.length > 0) {
-    console.warn(`[DSL] validation diagnostics in ${path}`, compiled.diagnostics)
-  }
-
-  const lessonId = parsed.lesson.meta.id
-  const lessonDoc = lessonDocsById.get(lessonId)
-  if (!lessonDoc) missingDocs.push(lessonId)
-
-  loadedLessons.push({
-    id: lessonId,
-    title: parsed.lesson.meta.title,
-    tags: parsed.lesson.meta.tags ?? [],
-    order: parsed.lesson.meta.order ?? Number.MAX_SAFE_INTEGER,
-    doc: lessonDoc ?? '',
-    dsl: parsed.lesson,
-    graph: compiled.graph,
-    runtime: compiled.timeline,
-    bindings: compiled.bindings,
-  })
-}
-
-if (missingDocs.length > 0) {
-  const expected = missingDocs.map(id => `content/lessons/${id}.md`).join(', ')
-  throw new Error(`Missing lesson docs: ${expected}`)
-}
-
-loadedLessons.sort((a, b) => {
-  if (a.order !== b.order) return a.order - b.order
-  return a.title.localeCompare(b.title)
-})
-
-if (loadedLessons.length === 0) {
-  throw new Error('No valid lessons loaded from src/dsl/examples/*.yaml')
-}
-
+const lessonStore = new LessonStore()
+const lessonAI = new LessonAIService()
+const courseOrchestrator = new DefaultCourseOrchestrator(lessonAI)
+const lessonDocsById = loadLessonDocsById(lessonDocFiles)
+const builtInLessons = loadBuiltInLessons(lessonFiles, lessonDocsById)
+let loadedLessons: LoadedLesson[] = []
+let activeLessonId: string | null = null
 let activeCleanup: Array<() => void> = []
 let activeRuntime: TimelineRuntime | null = null
 
-const lessonList: LessonListItem[] = loadedLessons.map(lesson => ({
-  id: lesson.id,
-  title: lesson.title,
-  tags: lesson.tags,
-}))
-
-shell.setLessons(lessonList, (id) => {
-  switchLesson(id)
-}, loadedLessons[0].id)
-
-switchLesson(loadedLessons[0].id)
+shell.setLessonActions({
+  onCreateAI: (payload) => handleCreateAILesson(payload),
+  onUpdateAI: (id, payload) => handleUpdateAILesson(id, payload),
+  onDeleteAI: (id) => handleDeleteAILesson(id),
+  onConfigureAI: (settings) => handleConfigureAI(settings),
+})
+shell.setLessonVersionHandlers({
+  onSwitchVersion: (lessonId, revision) => handleSwitchLessonVersion(lessonId, revision),
+})
+shell.setAISettings(courseOrchestrator.loadSettings())
+shell.setAIStatus('Fill in course info and click the + button to create.', 'info')
+refreshLessons()
 
 function switchLesson(id: string): void {
   const lesson = loadedLessons.find(l => l.id === id)
   if (!lesson) return
+  activeLessonId = lesson.id
 
   if (activeRuntime) activeRuntime.stop()
   activeCleanup.forEach(fn => fn())
@@ -129,6 +94,7 @@ function switchLesson(id: string): void {
   shell.setCoordinateFramePreference(resolveCoordinateFramePreference(lesson.dsl))
   const controls = buildLessonControls(lesson)
   shell.setLessonControls(controls.sliders)
+  shell.setLessonVersions(buildVersionPanelData(lesson))
 
   const nodeIds = lesson.graph.allEntities().filter(e => e.type === 'node').map(e => e.id)
   const VISITED_COLOR = 0x00e5ff
@@ -188,6 +154,473 @@ function switchLesson(id: string): void {
 
   applyVisitedColors(0)
   controls.onTimelineTick(lesson.runtime.time)
+}
+
+function refreshLessons(preferredActiveId?: string): void {
+  const aiLessons = loadAILessons(lessonStore.loadAll())
+  loadedLessons = [...builtInLessons, ...aiLessons]
+  loadedLessons.sort((a, b) => {
+    if (a.order !== b.order) return a.order - b.order
+    return a.title.localeCompare(b.title)
+  })
+
+  if (loadedLessons.length === 0) {
+    shell.setAIStatus('无可用课程，请检查内置 DSL 文件或添加 AI 课程。', 'error')
+    return
+  }
+
+  const lessonList: LessonListItem[] = loadedLessons.map(lesson => ({
+    id: lesson.id,
+    title: lesson.title,
+    tags: lesson.tags,
+    source: lesson.source,
+  }))
+
+  const nextActiveId = pickNextActiveLessonId(preferredActiveId)
+  shell.setLessons(lessonList, (id) => {
+    switchLesson(id)
+  }, nextActiveId)
+  switchLesson(nextActiveId)
+}
+
+function loadLessonDocsById(docFiles: Record<string, string>): Map<string, string> {
+  const docs = new Map<string, string>()
+  for (const [path, raw] of Object.entries(docFiles)) {
+    const fileName = path.split('/').pop()
+    if (!fileName || !fileName.endsWith('.md')) continue
+    const id = fileName.slice(0, -3)
+    if (id.toLowerCase() === 'readme') continue
+    docs.set(id, raw)
+  }
+  return docs
+}
+
+function loadBuiltInLessons(
+  files: Record<string, string>,
+  docsById: Map<string, string>,
+): LoadedLesson[] {
+  const missingDocs: string[] = []
+  const lessons: LoadedLesson[] = []
+
+  for (const [path, raw] of Object.entries(files)) {
+    const parsed = parser.parse(raw, 'yaml')
+    if (!parsed.lesson) {
+      console.error(`[DSL] parse failed for ${path}`, parsed.issues)
+      continue
+    }
+    if (parsed.issues.length > 0) {
+      console.warn(`[DSL] parse issues in ${path}`, parsed.issues)
+    }
+
+    const compiled = compiler.compile(parsed.lesson)
+    if (compiled.diagnostics.length > 0) {
+      console.warn(`[DSL] validation diagnostics in ${path}`, compiled.diagnostics)
+    }
+
+    const lessonId = parsed.lesson.meta.id
+    const lessonDoc = docsById.get(lessonId)
+    if (!lessonDoc) missingDocs.push(lessonId)
+
+    lessons.push({
+      id: lessonId,
+      source: 'builtin',
+      revision: null,
+      title: parsed.lesson.meta.title,
+      tags: parsed.lesson.meta.tags ?? [],
+      order: parsed.lesson.meta.order ?? Number.MAX_SAFE_INTEGER,
+      doc: lessonDoc ?? '',
+      dsl: parsed.lesson,
+      graph: compiled.graph,
+      runtime: compiled.timeline,
+      bindings: compiled.bindings,
+    })
+  }
+
+  if (missingDocs.length > 0) {
+    const expected = missingDocs.map(id => `content/lessons/${id}.md`).join(', ')
+    throw new Error(`Missing lesson docs: ${expected}`)
+  }
+
+  return lessons
+}
+
+function loadAILessons(storedLessons: StoredAILesson[]): LoadedLesson[] {
+  const lessons: LoadedLesson[] = []
+  for (const entry of storedLessons) {
+    const parsed = parser.parse(JSON.stringify(entry.dsl), 'json')
+    if (!parsed.lesson) {
+      console.warn(`[AI] skip invalid stored lesson "${entry.id}"`, parsed.issues)
+      continue
+    }
+    const compiled = compiler.compile(parsed.lesson)
+    const hasBlockingError = compiled.diagnostics.some(diag => diag.type === 'error')
+    if (hasBlockingError) {
+      console.warn(`[AI] skip lesson "${entry.id}" due to diagnostics`, compiled.diagnostics)
+      continue
+    }
+    lessons.push({
+      id: parsed.lesson.meta.id,
+      source: 'ai',
+      revision: entry.revision,
+      title: parsed.lesson.meta.title,
+      tags: parsed.lesson.meta.tags ?? ['ai'],
+      order: parsed.lesson.meta.order ?? 9000,
+      doc: entry.doc,
+      dsl: parsed.lesson,
+      graph: compiled.graph,
+      runtime: compiled.timeline,
+      bindings: compiled.bindings,
+    })
+  }
+  return lessons
+}
+
+function pickNextActiveLessonId(preferredActiveId?: string): string {
+  const preferred = preferredActiveId ?? activeLessonId
+  if (preferred && loadedLessons.some(lesson => lesson.id === preferred)) return preferred
+  return loadedLessons[0].id
+}
+
+function buildVersionPanelData(lesson: LoadedLesson): {
+  lessonId: string
+  source: 'builtin' | 'ai'
+  currentRevision: number | null
+  metadata: {
+    headRevision: number
+    headUpdatedAt: string
+    lastAction: string
+    lastNote: string
+    historyTruncated: boolean
+    lastStrategy: string | null
+  } | null
+  entries: Array<{
+    revision: number
+    createdAt: string
+    action: string
+    note: string
+    isCurrent: boolean
+    orchestration: {
+      strategy: string
+      requestId: string
+      orchestrator: string
+      generatedAt: string
+      capabilitySnapshotId: string | null
+      capabilityCount: number
+    } | null
+  }>
+} {
+  if (lesson.source !== 'ai') {
+    return {
+      lessonId: lesson.id,
+      source: lesson.source,
+      currentRevision: null,
+      metadata: null,
+      entries: [],
+    }
+  }
+
+  const stored = lessonStore.findById(lesson.id)
+  const currentRevision = lesson.revision ?? null
+  const history = lessonStore.getHistory(lesson.id)
+  return {
+    lessonId: lesson.id,
+    source: lesson.source,
+    currentRevision,
+    metadata: stored
+      ? {
+          headRevision: stored.metadata.headRevision,
+          headUpdatedAt: stored.metadata.headUpdatedAt,
+          lastAction: stored.metadata.lastAction,
+          lastNote: stored.metadata.lastNote,
+          historyTruncated: stored.metadata.historyTruncated,
+          lastStrategy: stored.metadata.lastOrchestration?.strategy ?? null,
+        }
+      : null,
+    entries: history.map((item) => mapHistoryEntry(item, currentRevision)),
+  }
+}
+
+function mapHistoryEntry(
+  item: StoredAILessonRevision,
+  currentRevision: number | null,
+): {
+  revision: number
+  createdAt: string
+  action: string
+  note: string
+  isCurrent: boolean
+  orchestration: {
+    strategy: string
+    requestId: string
+    orchestrator: string
+    generatedAt: string
+    capabilitySnapshotId: string | null
+    capabilityCount: number
+  } | null
+} {
+  return {
+    revision: item.revision,
+    createdAt: item.createdAt,
+    action: item.action,
+    note: item.note,
+    isCurrent: currentRevision !== null && item.revision === currentRevision,
+    orchestration: item.orchestration
+      ? {
+          strategy: item.orchestration.strategy,
+          requestId: item.orchestration.requestId,
+          orchestrator: item.orchestration.orchestrator,
+          generatedAt: item.orchestration.generatedAt,
+          capabilitySnapshotId: item.orchestration.capabilitySnapshotId ?? null,
+          capabilityCount: item.orchestration.capabilityIds?.length ?? 0,
+        }
+      : null,
+  }
+}
+
+async function handleSwitchLessonVersion(lessonId: string, revision: number): Promise<void> {
+  const lesson = loadedLessons.find(item => item.id === lessonId)
+  if (!lesson || lesson.source !== 'ai') {
+    shell.setAIStatus('Only AI lessons support version switching.', 'error')
+    return
+  }
+
+  const result = lessonStore.rollbackToRevision(lessonId, revision, `Switch from panel to r${revision}`)
+  if (!result) {
+    shell.setAIStatus(`Failed to switch: revision r${revision} not found.`, 'error')
+    return
+  }
+
+  refreshLessons(result.id)
+  shell.setAIStatus(`Switched to r${revision}. New head revision is r${result.revision}.`, 'success')
+}
+
+async function handleCreateAILesson(payload: AIPanelCreatePayload): Promise<void> {
+  const normalizedTitle = payload.title.trim()
+  const normalizedDescription = payload.description.trim()
+  const tags = payload.tags
+  if (!normalizedTitle || !normalizedDescription) {
+    shell.setAIStatus('请填写课程标题与课程描述。', 'error')
+    return
+  }
+
+  await runWithBusy('AI 正在生成课程，请稍候...', async () => {
+    const generated = await courseOrchestrator.generateCourse({
+      title: normalizedTitle,
+      description: normalizedDescription,
+      tags,
+      level: 'beginner',
+    })
+    const prepared = prepareGeneratedLesson(generated, normalizedTitle)
+    const now = new Date().toISOString()
+    const { lesson: saved, compacted } = lessonStore.upsert(
+      {
+        id: prepared.dsl.meta.id,
+        title: prepared.dsl.meta.title,
+        tags: prepared.dsl.meta.tags ?? tags,
+        doc: prepared.docMarkdown,
+        dsl: prepared.dsl,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        action: 'create',
+        note: buildRevisionNote('create', normalizedDescription),
+        orchestration: generated.metadata,
+      },
+    )
+    refreshLessons(prepared.dsl.meta.id)
+    const compactedNote = compacted ? '（存储空间不足，部分旧历史已自动清理）' : ''
+    shell.setAIStatus(`课程「${prepared.dsl.meta.title}」已生成并保存（r${saved.revision}）。${compactedNote}`, 'success')
+  })
+}
+
+async function handleUpdateAILesson(
+  targetId: string | null,
+  payload: AIPanelUpdatePayload,
+): Promise<void> {
+  if (!targetId) return
+  const lesson = loadedLessons.find(item => item.id === targetId)
+  if (!lesson) return
+
+  const normalizedFeedback = payload.feedback.trim()
+  if (!normalizedFeedback) {
+    shell.setAIStatus('请填写反馈后再更新课程。', 'error')
+    return
+  }
+
+  await runWithBusy('AI 正在更新课程，请稍候...', async () => {
+    const storedCurrent = lesson.source === 'ai' ? lessonStore.findById(lesson.id) : null
+    const baseCapabilitySnapshotId = storedCurrent?.metadata.lastOrchestration?.capabilitySnapshotId ?? null
+
+    const generated = await courseOrchestrator.updateCourse({
+      feedback: normalizedFeedback,
+      existingDSL: lesson.dsl,
+      existingDoc: lesson.doc,
+    }, {
+      baseCapabilitySnapshotId,
+      forceOnCapabilityMismatch: payload.forceOnCapabilityMismatch,
+    })
+
+    const isBuiltin = lesson.source === 'builtin'
+    const defaultTitle = isBuiltin ? `${lesson.title}(AI更新)` : lesson.title
+    const preferredId = isBuiltin ? `${lesson.id}-ai` : lesson.id
+    const prepared = prepareGeneratedLesson(
+      generated,
+      defaultTitle,
+      preferredId,
+      isBuiltin ? undefined : lesson.id,
+    )
+
+    const existing = lessonStore.findById(prepared.dsl.meta.id)
+    const now = new Date().toISOString()
+    const { lesson: saved, compacted } = lessonStore.upsert(
+      {
+        id: prepared.dsl.meta.id,
+        title: prepared.dsl.meta.title,
+        tags: prepared.dsl.meta.tags ?? lesson.tags,
+        doc: prepared.docMarkdown,
+        dsl: prepared.dsl,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      },
+      {
+        action: existing ? 'update' : 'create',
+        note: buildRevisionNote(existing ? 'update' : 'create', normalizedFeedback),
+        orchestration: generated.metadata,
+      },
+    )
+
+    refreshLessons(prepared.dsl.meta.id)
+    const compactedNote = compacted ? '（存储空间不足，部分旧历史已自动清理）' : ''
+    shell.setAIStatus(`课程「${prepared.dsl.meta.title}」已根据反馈更新（r${saved.revision}）。${compactedNote}`, 'success')
+  })
+}
+async function handleDeleteAILesson(targetId: string | null): Promise<void> {
+  if (!targetId) return
+  const lesson = loadedLessons.find(item => item.id === targetId)
+  if (!lesson) return
+  if (lesson.source !== 'ai') {
+    shell.setAIStatus('Built-in lessons cannot be deleted. Use AI update to create a derived version.', 'error')
+    return
+  }
+
+  lessonStore.remove(lesson.id)
+  refreshLessons()
+  shell.setAIStatus(`Deleted AI lesson "${lesson.title}".`, 'success')
+}
+
+function handleConfigureAI(settings: AIPanelSettingsPayload): void {
+  courseOrchestrator.saveSettings({
+    endpoint: settings.endpoint.trim(),
+    apiKey: settings.apiKey.trim(),
+    model: settings.model.trim(),
+    orchestratorMode: settings.orchestratorMode,
+    orchestratorEndpoint: settings.orchestratorEndpoint.trim(),
+  })
+  shell.setAISettings(courseOrchestrator.loadSettings())
+  const modeText = settings.orchestratorMode === 'pipeline' ? 'pipeline' : 'direct'
+  shell.setAIStatus(
+    `AI settings saved (mode: ${modeText}). Direct mode can use local fallback; pipeline mode requires orchestrator endpoint.`,
+    'success',
+  )
+}
+
+async function runWithBusy(message: string, task: () => Promise<void>): Promise<void> {
+  const previousCursor = document.body.style.cursor
+  document.body.style.cursor = 'progress'
+  try {
+    await task()
+    console.info(message)
+  } catch (error) {
+    const text = error instanceof CapabilityDriftError
+      ? `Capability drift check blocked update: ${error.message}`
+      : (error instanceof Error ? error.message : 'Unknown error')
+    shell.setAIStatus(`Operation failed: ${text}`, 'error')
+  } finally {
+    document.body.style.cursor = previousCursor
+  }
+}
+
+function prepareGeneratedLesson(
+  payload: GeneratedLessonPayload,
+  fallbackTitle: string,
+  preferredId?: string,
+  reusableId?: string,
+): GeneratedLessonPayload {
+  const rawDSL = payload.dsl ?? ({ meta: { id: '', title: '' } } as LessonDSL)
+  const nextDSL: LessonDSL = JSON.parse(JSON.stringify(rawDSL))
+
+  if (!nextDSL.meta) nextDSL.meta = { id: '', title: fallbackTitle }
+  if (!nextDSL.meta.title || !nextDSL.meta.title.trim()) nextDSL.meta.title = fallbackTitle
+
+  const baseId = preferredId ?? nextDSL.meta.id ?? fallbackTitle
+  const uniqueId = ensureUniqueLessonId(baseId, reusableId)
+  nextDSL.meta.id = uniqueId
+  if (!Array.isArray(nextDSL.meta.tags)) nextDSL.meta.tags = []
+  if (!nextDSL.meta.tags.includes('ai-generated')) nextDSL.meta.tags.push('ai-generated')
+  if (!nextDSL.views || nextDSL.views.length === 0) {
+    nextDSL.views = [
+      { id: 'main3d', type: '3d', overlays: ['axes'] },
+      { id: 'graph', type: 'graph' },
+      { id: 'inspector', type: 'inspector' },
+      { id: 'plot', type: 'plot' },
+    ]
+  }
+  if (!nextDSL.timeline) {
+    nextDSL.timeline = { duration: 12, markers: [], tracks: [] }
+  }
+
+  const parsed = parser.parse(JSON.stringify(nextDSL), 'json')
+  if (!parsed.lesson) {
+    const msg = parsed.issues.map(item => `${item.location}: ${item.message}`).join('\n')
+    throw new Error(`AI returned invalid DSL structure:\n${msg}`)
+  }
+
+  const compiled = compiler.compile(parsed.lesson)
+  const blocking = compiled.diagnostics.filter(diag => diag.type === 'error')
+  if (blocking.length > 0) {
+    const msg = blocking.map(diag => `${diag.location}: ${diag.message}`).join('\n')
+    throw new Error(`AI returned DSL semantic errors:\n${msg}`)
+  }
+
+  return {
+    dsl: parsed.lesson,
+    docMarkdown: payload.docMarkdown?.trim() || `# ${parsed.lesson.meta.title}\n\nAI generated content.`,
+  }
+}
+
+function ensureUniqueLessonId(rawId: string, reusableId?: string): string {
+  const base = normalizeLessonId(rawId)
+  let candidate = base
+  let suffix = 1
+  while (
+    loadedLessons.some(item => item.id === candidate && item.id !== reusableId)
+    || (lessonStore.findById(candidate) && candidate !== reusableId)
+  ) {
+    candidate = `${base}-${suffix}`
+    suffix += 1
+  }
+  return candidate
+}
+
+function normalizeLessonId(raw: string): string {
+  const normalized = raw
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\u4e00-\u9fa5_-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  if (normalized.length > 0) return normalized.slice(0, 48)
+  return `lesson-${Date.now()}`
+}
+
+function buildRevisionNote(action: 'create' | 'update', text: string): string {
+  const normalized = text.replace(/\s+/g, ' ').trim()
+  const preview = normalized.slice(0, 80)
+  if (preview.length === 0) {
+    return action === 'create' ? 'Created by AI' : 'Updated by AI'
+  }
+  return action === 'create' ? `Create: ${preview}` : `Update: ${preview}`
 }
 
 type DeclaredViewType = '3d' | 'graph' | 'inspector' | 'plot'
@@ -457,20 +890,29 @@ function compileBindingEvaluator(
 ): (ctx: UIEvalContext) => unknown {
   if (typeof binding.expr === 'string' && binding.expr.trim().length > 0) {
     const expr = binding.expr.trim()
+    if (!isSafeBindingExpression(expr)) {
+      console.warn(`[ui] blocked unsafe binding expression: ${expr}`)
+      return () => undefined
+    }
     let fn = cache.get(expr)
     if (!fn) {
-      fn = new Function(
-        'state',
-        'consts',
-        'entity',
-        'relation',
-        'degToRad',
-        'radToDeg',
-        'clamp',
-        'formatNumber',
-        'Math',
-        `return (${expr});`
-      ) as (...args: unknown[]) => unknown
+      try {
+        fn = new Function(
+          'state',
+          'consts',
+          'entity',
+          'relation',
+          'degToRad',
+          'radToDeg',
+          'clamp',
+          'formatNumber',
+          'Math',
+          `"use strict"; return (${expr});`
+        ) as (...args: unknown[]) => unknown
+      } catch (error) {
+        console.warn(`[ui] failed to compile binding expression: ${expr}`, error)
+        return () => undefined
+      }
       cache.set(expr, fn)
     }
     return (ctx: UIEvalContext): unknown => fn!(
@@ -495,6 +937,18 @@ function compileBindingEvaluator(
   }
 
   return () => undefined
+}
+
+const BINDING_EXPR_DISALLOWED_PATTERNS: RegExp[] = [
+  /=>/,
+  /[{}\[\];`]/,
+  /\b(?:window|document|globalThis|global|self|top|parent|frames|localStorage|sessionStorage|indexedDB|caches|navigator|location|history|cookieStore|XMLHttpRequest|fetch|WebSocket|Worker|SharedWorker|Function|eval|import|constructor|prototype|__proto__|this|new|alert|prompt|confirm|open|postMessage|setTimeout|setInterval)\b/i,
+]
+
+function isSafeBindingExpression(expression: string): boolean {
+  const normalized = expression.trim()
+  if (normalized.length === 0 || normalized.length > 800) return false
+  return BINDING_EXPR_DISALLOWED_PATTERNS.every(pattern => !pattern.test(normalized))
 }
 
 function syncPropertyTrackAtTime(

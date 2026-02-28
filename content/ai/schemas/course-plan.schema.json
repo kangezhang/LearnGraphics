@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://learngraphics.local/schemas/course-plan.schema.json",
+  "title": "CoursePlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "plan_id",
+    "request_id",
+    "topic",
+    "total_duration_min",
+    "segments"
+  ],
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "topic": {
+      "type": "string",
+      "minLength": 2
+    },
+    "total_duration_min": {
+      "type": "integer",
+      "minimum": 5
+    },
+    "segments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "segment_id",
+          "title",
+          "duration_min",
+          "capabilities",
+          "expected_output"
+        ],
+        "properties": {
+          "segment_id": {
+            "type": "string",
+            "minLength": 2
+          },
+          "title": {
+            "type": "string",
+            "minLength": 2
+          },
+          "duration_min": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "capabilities": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z]+(\\.[a-z0-9_]+)+$"
+            }
+          },
+          "expected_output": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          }
+        }
+      }
+    },
+    "quality_targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_rubric_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "must_pass_hard_rules": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

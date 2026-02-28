@@ -1,0 +1,69 @@
+{
+  "plan_id": "plan_req_20260227_vector_projection",
+  "request_id": "req_20260227_vector_projection",
+  "topic": "向量投影",
+  "total_duration_min": 25,
+  "segments": [
+    {
+      "segment_id": "s1",
+      "title": "问题引入",
+      "duration_min": 5,
+      "capabilities": [
+        "teach.story_context.force_split"
+      ],
+      "expected_output": [
+        "lesson_script"
+      ],
+      "dependencies": []
+    },
+    {
+      "segment_id": "s2",
+      "title": "核心概念",
+      "duration_min": 8,
+      "capabilities": [
+        "teach.geometry.vector_projection.basic"
+      ],
+      "expected_output": [
+        "lesson_script",
+        "exercise_set",
+        "assessment_rubric",
+        "dsl_patch"
+      ],
+      "dependencies": [
+        "math.vector.dot_product"
+      ]
+    },
+    {
+      "segment_id": "s3",
+      "title": "过程演示",
+      "duration_min": 7,
+      "capabilities": [
+        "teach.geometry.angle_measure.visual"
+      ],
+      "expected_output": [
+        "lesson_script",
+        "dsl_patch"
+      ],
+      "dependencies": [
+        "teach.geometry.vector_projection.basic"
+      ]
+    },
+    {
+      "segment_id": "s4",
+      "title": "练习与评估",
+      "duration_min": 5,
+      "capabilities": [
+        "teach.assessment.quick_check.mcq"
+      ],
+      "expected_output": [
+        "exercise_set",
+        "assessment_rubric"
+      ],
+      "dependencies": []
+    }
+  ],
+  "quality_targets": {
+    "min_rubric_score": 4,
+    "must_pass_hard_rules": true
+  }
+}

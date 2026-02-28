@@ -1,0 +1,22 @@
+{
+  "request_id": "reg_vector_projection_beginner",
+  "topic": "向量投影",
+  "learner_profile": {
+    "level": "beginner",
+    "age_group": "high_school"
+  },
+  "goal": "理解投影长度和符号，并能解释与夹角关系",
+  "duration_min": 25,
+  "style": "直观+步骤化",
+  "language": "zh-CN",
+  "must_include": [
+    "生活案例",
+    "可操作练习"
+  ],
+  "must_avoid": [
+    "超纲证明"
+  ],
+  "output_format": [
+    "json"
+  ]
+}

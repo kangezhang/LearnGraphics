@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://learngraphics.local/schemas/course-request.schema.json",
+  "title": "CourseRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "request_id",
+    "topic",
+    "learner_profile",
+    "goal",
+    "duration_min",
+    "style",
+    "output_format"
+  ],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "topic": {
+      "type": "string",
+      "minLength": 2
+    },
+    "learner_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level"
+      ],
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "beginner",
+            "intermediate",
+            "advanced"
+          ]
+        },
+        "age_group": {
+          "type": "string"
+        },
+        "prior_knowledge": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 4
+    },
+    "duration_min": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 180
+    },
+    "style": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string",
+      "default": "zh-CN"
+    },
+    "must_include": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "must_avoid": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "output_format": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "markdown",
+          "json",
+          "dsl_patch",
+          "dsl_full"
+        ]
+      }
+    }
+  }
+}

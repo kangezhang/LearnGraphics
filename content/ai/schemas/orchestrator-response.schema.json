@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://learngraphics.local/schemas/orchestrator-response.schema.json",
+  "title": "Orchestrator Response",
+  "type": "object",
+  "required": ["lesson_package"],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lesson_package": {
+      "type": "object",
+      "required": ["dsl", "doc_markdown"],
+      "properties": {
+        "dsl": {
+          "type": "object"
+        },
+        "doc_markdown": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "quality_report": {
+      "type": "object",
+      "properties": {
+        "hard_rule_pass": {
+          "type": "boolean"
+        },
+        "rubric_score": {
+          "type": "number"
+        },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

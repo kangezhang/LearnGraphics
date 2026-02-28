@@ -1,0 +1,42 @@
+{
+  "capability_id": "teach.assessment.quick_check.mcq",
+  "name": "Quick Check MCQ Builder",
+  "version": "1.0.0",
+  "domain": "pedagogy",
+  "level": "beginner",
+  "inputs": [
+    "topic",
+    "learner_level",
+    "target_concepts"
+  ],
+  "outputs": [
+    "exercise_set",
+    "assessment_rubric"
+  ],
+  "dependencies": [],
+  "constraints": [
+    "each_question_has_single_best_answer",
+    "include_common_misconception_option"
+  ],
+  "quality_criteria": [
+    "distractor_quality",
+    "concept_coverage"
+  ],
+  "template_refs": [
+    "template.lesson.explain_then_practice.v1"
+  ],
+  "dsl_refs": [],
+  "failure_codes": [
+    "AMBIGUOUS_CORRECT_OPTION",
+    "NO_MISCONCEPTION_COVERAGE"
+  ],
+  "examples": [
+    {
+      "input": {
+        "topic": "vector projection"
+      },
+      "output_summary": "Generates 3 MCQs on direction, magnitude, and sign of projection."
+    }
+  ],
+  "status": "active"
+}

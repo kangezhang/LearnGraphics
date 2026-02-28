@@ -1,0 +1,45 @@
+{
+  "capability_id": "teach.calculus.loss_surface.reading",
+  "name": "Loss Surface Reading",
+  "version": "1.0.0",
+  "domain": "calculus",
+  "level": "intermediate",
+  "inputs": [
+    "topic",
+    "learner_level"
+  ],
+  "outputs": [
+    "lesson_script",
+    "dsl_patch"
+  ],
+  "dependencies": [
+    "teach.calculus.gradient_descent.intro"
+  ],
+  "constraints": [
+    "must_explain_contour_vs_height",
+    "must_connect_gradient_direction_to_descent"
+  ],
+  "quality_criteria": [
+    "field_interpretation",
+    "visual_mapping_accuracy"
+  ],
+  "template_refs": [
+    "template.lesson.problem_driven.v1"
+  ],
+  "dsl_refs": [
+    "src/dsl/examples/gradient-descent.yaml"
+  ],
+  "failure_codes": [
+    "CONTOUR_MAPPING_INCORRECT",
+    "GRADIENT_DIRECTION_MISSING"
+  ],
+  "examples": [
+    {
+      "input": {
+        "topic": "loss field and trajectory"
+      },
+      "output_summary": "Reads contour density as slope magnitude and links it to update speed."
+    }
+  ],
+  "status": "active"
+}

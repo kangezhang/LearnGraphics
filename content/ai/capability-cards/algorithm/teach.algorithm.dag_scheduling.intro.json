@@ -1,0 +1,46 @@
+{
+  "capability_id": "teach.algorithm.dag_scheduling.intro",
+  "name": "DAG Scheduling Intro",
+  "version": "1.0.0",
+  "domain": "algorithm",
+  "level": "intermediate",
+  "inputs": [
+    "learner_level",
+    "goal"
+  ],
+  "outputs": [
+    "lesson_script",
+    "exercise_set",
+    "dsl_patch"
+  ],
+  "dependencies": [
+    "cs.graph.node_edge_basics"
+  ],
+  "constraints": [
+    "must_define_dependency_edge_semantics",
+    "must_include_cycle_detection_note"
+  ],
+  "quality_criteria": [
+    "dependency_reasoning",
+    "schedule_validity"
+  ],
+  "template_refs": [
+    "template.lesson.step_simulation.v1"
+  ],
+  "dsl_refs": [
+    "src/dsl/examples/dag-schedule.yaml"
+  ],
+  "failure_codes": [
+    "DEPENDENCY_DIRECTION_UNCLEAR",
+    "CYCLE_NOTE_MISSING"
+  ],
+  "examples": [
+    {
+      "input": {
+        "goal": "explain topological scheduling with task constraints"
+      },
+      "output_summary": "Shows available task set at each timeline step."
+    }
+  ],
+  "status": "active"
+}

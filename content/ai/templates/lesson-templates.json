@@ -1,0 +1,39 @@
+{
+  "version": "1.0.0",
+  "templates": [
+    {
+      "template_id": "template.lesson.explain_then_practice.v1",
+      "name": "Explain Then Practice",
+      "segments": [
+        "hook",
+        "concept_explain",
+        "worked_example",
+        "guided_practice",
+        "quick_check",
+        "summary"
+      ]
+    },
+    {
+      "template_id": "template.lesson.problem_driven.v1",
+      "name": "Problem Driven",
+      "segments": [
+        "problem_statement",
+        "hypothesis",
+        "visual_reasoning",
+        "solution_steps",
+        "reflection"
+      ]
+    },
+    {
+      "template_id": "template.lesson.step_simulation.v1",
+      "name": "Step Simulation",
+      "segments": [
+        "initial_state",
+        "step_execution",
+        "state_transition",
+        "result_analysis",
+        "transfer_task"
+      ]
+    }
+  ]
+}

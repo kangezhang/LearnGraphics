@@ -1,0 +1,46 @@
+{
+  "capability_id": "teach.geometry.plane_intersection.intro",
+  "name": "Line/Plane Intersection Intro",
+  "version": "1.0.0",
+  "domain": "geometry",
+  "level": "intermediate",
+  "inputs": [
+    "learner_level",
+    "goal"
+  ],
+  "outputs": [
+    "lesson_script",
+    "exercise_set",
+    "dsl_patch"
+  ],
+  "dependencies": [
+    "math.vector.parametric_line"
+  ],
+  "constraints": [
+    "must_explain_parallel_case",
+    "must_include_parameter_t_interpretation"
+  ],
+  "quality_criteria": [
+    "case_completeness",
+    "parameter_reasoning"
+  ],
+  "template_refs": [
+    "template.lesson.problem_driven.v1"
+  ],
+  "dsl_refs": [
+    "src/dsl/examples/ray-intersection.yaml"
+  ],
+  "failure_codes": [
+    "PARALLEL_CASE_MISSING",
+    "T_MEANING_UNCLEAR"
+  ],
+  "examples": [
+    {
+      "input": {
+        "goal": "understand intersection parameter t"
+      },
+      "output_summary": "Explains hit/miss based on denominator and sign of t."
+    }
+  ],
+  "status": "active"
+}

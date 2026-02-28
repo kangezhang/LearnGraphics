@@ -1,0 +1,46 @@
+{
+  "capability_id": "teach.graphics.ray_plane.intersection",
+  "name": "Ray-Plane Intersection",
+  "version": "1.0.0",
+  "domain": "graphics",
+  "level": "intermediate",
+  "inputs": [
+    "learner_level",
+    "goal"
+  ],
+  "outputs": [
+    "lesson_script",
+    "exercise_set",
+    "dsl_patch"
+  ],
+  "dependencies": [
+    "teach.geometry.plane_intersection.intro"
+  ],
+  "constraints": [
+    "must_explain_hit_test_condition",
+    "must_cover_negative_t_case"
+  ],
+  "quality_criteria": [
+    "equation_to_visual_mapping",
+    "edge_case_coverage"
+  ],
+  "template_refs": [
+    "template.lesson.step_simulation.v1"
+  ],
+  "dsl_refs": [
+    "src/dsl/examples/ray-intersection.yaml"
+  ],
+  "failure_codes": [
+    "HIT_CONDITION_UNCLEAR",
+    "NEGATIVE_T_CASE_MISSING"
+  ],
+  "examples": [
+    {
+      "input": {
+        "goal": "determine when a ray hits a plane in front of camera"
+      },
+      "output_summary": "Compares denominator sign and t sign with state overlay."
+    }
+  ],
+  "status": "active"
+}

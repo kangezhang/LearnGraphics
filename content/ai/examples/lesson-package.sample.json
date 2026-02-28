@@ -1,0 +1,267 @@
+{
+  "request_id": "req_20260227_vector_projection",
+  "course_plan": {
+    "plan_id": "plan_req_20260227_vector_projection",
+    "request_id": "req_20260227_vector_projection",
+    "topic": "向量投影",
+    "total_duration_min": 25,
+    "segments": [
+      {
+        "segment_id": "s1",
+        "title": "问题引入",
+        "duration_min": 5,
+        "capabilities": [
+          "teach.story_context.force_split"
+        ],
+        "expected_output": [
+          "lesson_script"
+        ],
+        "dependencies": []
+      },
+      {
+        "segment_id": "s2",
+        "title": "核心概念",
+        "duration_min": 8,
+        "capabilities": [
+          "teach.geometry.vector_projection.basic"
+        ],
+        "expected_output": [
+          "lesson_script",
+          "exercise_set",
+          "assessment_rubric",
+          "dsl_patch"
+        ],
+        "dependencies": [
+          "math.vector.dot_product"
+        ]
+      },
+      {
+        "segment_id": "s3",
+        "title": "过程演示",
+        "duration_min": 7,
+        "capabilities": [
+          "teach.geometry.angle_measure.visual"
+        ],
+        "expected_output": [
+          "lesson_script",
+          "dsl_patch"
+        ],
+        "dependencies": [
+          "teach.geometry.vector_projection.basic"
+        ]
+      },
+      {
+        "segment_id": "s4",
+        "title": "练习与评估",
+        "duration_min": 5,
+        "capabilities": [
+          "teach.assessment.quick_check.mcq"
+        ],
+        "expected_output": [
+          "exercise_set",
+          "assessment_rubric"
+        ],
+        "dependencies": []
+      }
+    ],
+    "quality_targets": {
+      "min_rubric_score": 4,
+      "must_pass_hard_rules": true
+    }
+  },
+  "lesson_script": {
+    "sections": [
+      {
+        "segment_id": "s1",
+        "title": "问题引入",
+        "narration": "本段聚焦「问题引入」，围绕主题「向量投影」进行讲解。将调用能力：Force Decomposition Story Hook，面向 beginner 学习者逐步展开。预计时长 5 分钟，目标是让学习者能复述关键概念并完成对应操作。",
+        "steps": [
+          "定位本段目标与前置依赖：无。",
+          "演示本段关键动作，并解释与「向量投影」的关系。",
+          "让学习者按步骤复现，记录结果并与预期对比。"
+        ],
+        "check_questions": [
+          "请用一句话说明本段「问题引入」解决了什么问题？",
+          "如果减少 一步，结果会发生什么变化？"
+        ]
+      },
+      {
+        "segment_id": "s2",
+        "title": "核心概念",
+        "narration": "本段聚焦「核心概念」，围绕主题「向量投影」进行讲解。将调用能力：Vector Projection Basics，面向 beginner 学习者逐步展开。预计时长 8 分钟，目标是让学习者能复述关键概念并完成对应操作。",
+        "steps": [
+          "定位本段目标与前置依赖：math.vector.dot_product。",
+          "演示本段关键动作，并解释与「向量投影」的关系。",
+          "让学习者按步骤复现，记录结果并与预期对比。"
+        ],
+        "check_questions": [
+          "请用一句话说明本段「核心概念」解决了什么问题？",
+          "如果减少 一步，结果会发生什么变化？"
+        ]
+      },
+      {
+        "segment_id": "s3",
+        "title": "过程演示",
+        "narration": "本段聚焦「过程演示」，围绕主题「向量投影」进行讲解。将调用能力：Visual Angle Measurement，面向 beginner 学习者逐步展开。预计时长 7 分钟，目标是让学习者能复述关键概念并完成对应操作。",
+        "steps": [
+          "定位本段目标与前置依赖：teach.geometry.vector_projection.basic。",
+          "演示本段关键动作，并解释与「向量投影」的关系。",
+          "让学习者按步骤复现，记录结果并与预期对比。"
+        ],
+        "check_questions": [
+          "请用一句话说明本段「过程演示」解决了什么问题？",
+          "如果减少 一步，结果会发生什么变化？"
+        ]
+      },
+      {
+        "segment_id": "s4",
+        "title": "练习与评估",
+        "narration": "本段聚焦「练习与评估」，围绕主题「向量投影」进行讲解。将调用能力：Quick Check MCQ Builder，面向 beginner 学习者逐步展开。预计时长 5 分钟，目标是让学习者能复述关键概念并完成对应操作。",
+        "steps": [
+          "定位本段目标与前置依赖：无。",
+          "演示本段关键动作，并解释与「向量投影」的关系。",
+          "让学习者按步骤复现，记录结果并与预期对比。"
+        ],
+        "check_questions": [
+          "请用一句话说明本段「练习与评估」解决了什么问题？",
+          "如果减少 一步，结果会发生什么变化？"
+        ]
+      }
+    ]
+  },
+  "exercise_set": {
+    "items": [
+      {
+        "exercise_id": "ex_1",
+        "title": "问题引入练习 1",
+        "input": "给定「向量投影」场景与能力「Force Decomposition Story Hook」的一个实例输入。",
+        "steps": [
+          "根据题目识别需要调用的能力与依赖。",
+          "按课堂步骤执行并记录关键中间结果。",
+          "对照预期结果自检，说明差异原因。"
+        ],
+        "expected_output": "完成 问题引入 的关键结论，并能解释其在「向量投影」中的作用。",
+        "difficulty": "easy"
+      },
+      {
+        "exercise_id": "ex_2",
+        "title": "核心概念练习 2",
+        "input": "给定「向量投影」场景与能力「Vector Projection Basics」的一个实例输入。",
+        "steps": [
+          "根据题目识别需要调用的能力与依赖。",
+          "按课堂步骤执行并记录关键中间结果。",
+          "对照预期结果自检，说明差异原因。"
+        ],
+        "expected_output": "完成 核心概念 的关键结论，并能解释其在「向量投影」中的作用。",
+        "difficulty": "hard"
+      }
+    ]
+  },
+  "assessment_rubric": {
+    "dimensions": [
+      {
+        "id": "accuracy",
+        "name": "Accuracy",
+        "scale_min": 1,
+        "scale_max": 5,
+        "criteria": {
+          "1": "Accuracy 明显不足，关键点缺失。",
+          "2": "Accuracy 偏弱，存在多个错误或遗漏。",
+          "3": "Accuracy 基本达标，但仍有可改进之处。",
+          "4": "Accuracy 良好，能稳定完成目标任务。",
+          "5": "Accuracy 优秀，解释清晰且迁移能力强。"
+        }
+      },
+      {
+        "id": "clarity",
+        "name": "Clarity",
+        "scale_min": 1,
+        "scale_max": 5,
+        "criteria": {
+          "1": "Clarity 明显不足，关键点缺失。",
+          "2": "Clarity 偏弱，存在多个错误或遗漏。",
+          "3": "Clarity 基本达标，但仍有可改进之处。",
+          "4": "Clarity 良好，能稳定完成目标任务。",
+          "5": "Clarity 优秀，解释清晰且迁移能力强。"
+        }
+      },
+      {
+        "id": "engagement",
+        "name": "Engagement",
+        "scale_min": 1,
+        "scale_max": 5,
+        "criteria": {
+          "1": "Engagement 明显不足，关键点缺失。",
+          "2": "Engagement 偏弱，存在多个错误或遗漏。",
+          "3": "Engagement 基本达标，但仍有可改进之处。",
+          "4": "Engagement 良好，能稳定完成目标任务。",
+          "5": "Engagement 优秀，解释清晰且迁移能力强。"
+        }
+      },
+      {
+        "id": "actionability",
+        "name": "Actionability",
+        "scale_min": 1,
+        "scale_max": 5,
+        "criteria": {
+          "1": "Actionability 明显不足，关键点缺失。",
+          "2": "Actionability 偏弱，存在多个错误或遗漏。",
+          "3": "Actionability 基本达标，但仍有可改进之处。",
+          "4": "Actionability 良好，能稳定完成目标任务。",
+          "5": "Actionability 优秀，解释清晰且迁移能力强。"
+        }
+      },
+      {
+        "id": "alignment",
+        "name": "Goal Alignment",
+        "scale_min": 1,
+        "scale_max": 5,
+        "criteria": {
+          "1": "Goal Alignment 明显不足，关键点缺失。",
+          "2": "Goal Alignment 偏弱，存在多个错误或遗漏。",
+          "3": "Goal Alignment 基本达标，但仍有可改进之处。",
+          "4": "Goal Alignment 良好，能稳定完成目标任务。",
+          "5": "Goal Alignment 优秀，解释清晰且迁移能力强。"
+        }
+      }
+    ]
+  },
+  "dsl_patch": [
+    {
+      "op": "add",
+      "path": "/timeline/markers",
+      "value": [
+        {
+          "id": "m_s1",
+          "time": 5,
+          "label": "问题引入（5m）"
+        },
+        {
+          "id": "m_s2",
+          "time": 8,
+          "label": "核心概念（8m）"
+        },
+        {
+          "id": "m_s3",
+          "time": 7,
+          "label": "过程演示（7m）"
+        },
+        {
+          "id": "m_s4",
+          "time": 5,
+          "label": "练习与评估（5m）"
+        }
+      ]
+    },
+    {
+      "op": "add",
+      "path": "/meta/generatedBy",
+      "value": "generate-lesson-package.mjs"
+    }
+  ],
+  "quality_report": {
+    "hard_rule_pass": true,
+    "rubric_score": 4.4,
+    "violations": []
+  }
+}

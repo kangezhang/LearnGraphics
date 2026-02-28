@@ -1,0 +1,45 @@
+{
+  "capability_id": "teach.geometry.angle_measure.visual",
+  "name": "Visual Angle Measurement",
+  "version": "1.0.0",
+  "domain": "geometry",
+  "level": "beginner",
+  "inputs": [
+    "topic",
+    "learner_level"
+  ],
+  "outputs": [
+    "lesson_script",
+    "dsl_patch"
+  ],
+  "dependencies": [
+    "teach.geometry.vector_projection.basic"
+  ],
+  "constraints": [
+    "must_link_angle_to_dot_product",
+    "must_show_angle_range_0_to_180"
+  ],
+  "quality_criteria": [
+    "formula_linking",
+    "visual_consistency"
+  ],
+  "template_refs": [
+    "template.lesson.explain_then_practice.v1"
+  ],
+  "dsl_refs": [
+    "src/dsl/examples/vector-dot.yaml"
+  ],
+  "failure_codes": [
+    "ANGLE_RANGE_MISSING",
+    "FORMULA_NOT_LINKED"
+  ],
+  "examples": [
+    {
+      "input": {
+        "topic": "dot product and angle"
+      },
+      "output_summary": "Adds angle arc and connects cosine sign to vector direction."
+    }
+  ],
+  "status": "active"
+}

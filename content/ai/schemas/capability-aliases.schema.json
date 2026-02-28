@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://learngraphics.local/schemas/capability-aliases.schema.json",
+  "title": "CapabilityAliases",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "aliases"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "aliases": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-z]+(\\.[a-z0-9_]+)+$"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z]+(\\.[a-z0-9_]+)+$"
+      }
+    }
+  }
+}

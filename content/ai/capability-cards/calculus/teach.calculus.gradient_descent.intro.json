@@ -1,0 +1,47 @@
+{
+  "capability_id": "teach.calculus.gradient_descent.intro",
+  "name": "Gradient Descent Intro",
+  "version": "1.0.0",
+  "domain": "calculus",
+  "level": "intermediate",
+  "inputs": [
+    "learner_level",
+    "goal",
+    "duration_min"
+  ],
+  "outputs": [
+    "lesson_script",
+    "exercise_set",
+    "dsl_patch"
+  ],
+  "dependencies": [
+    "math.gradient.basics"
+  ],
+  "constraints": [
+    "must_explain_step_size_effect",
+    "must_include_convergence_warning"
+  ],
+  "quality_criteria": [
+    "optimization_intuition",
+    "parameter_sensitivity_explanation"
+  ],
+  "template_refs": [
+    "template.lesson.explain_then_practice.v1"
+  ],
+  "dsl_refs": [
+    "src/dsl/examples/gradient-descent.yaml"
+  ],
+  "failure_codes": [
+    "STEP_SIZE_NOT_COVERED",
+    "CONVERGENCE_CONDITION_MISSING"
+  ],
+  "examples": [
+    {
+      "input": {
+        "goal": "understand why learning rate can overshoot"
+      },
+      "output_summary": "Contrasts small and large learning rates on same loss field."
+    }
+  ],
+  "status": "active"
+}

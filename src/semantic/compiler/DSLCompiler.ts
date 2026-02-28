@@ -91,13 +91,17 @@ export class DSLCompiler {
       case 'bfs':
         return this.buildBFSProcess(dsl, graph)
       case 'gradient_descent':
+        return this.buildGradientDescentProcess(dsl, graph)
       case 'gradient-descent':
       case 'gd':
+        console.warn(`[DSL] process.type "${dsl.process.type}" is deprecated, use "gradient_descent" instead.`)
         return this.buildGradientDescentProcess(dsl, graph)
       case 'ray_intersection':
+        return this.buildRayIntersectionProcess(dsl, graph)
       case 'ray-intersection':
       case 'ray_hit':
       case 'ray-hit':
+        console.warn(`[DSL] process.type "${dsl.process.type}" is deprecated, use "ray_intersection" instead.`)
         return this.buildRayIntersectionProcess(dsl, graph)
       default:
         return null
@@ -334,6 +338,15 @@ export class DSLCompiler {
   private compileRelation(relation: DSLRelation): SemanticRelation | null {
     const endpoints = resolveRelationEndpoints(relation)
     if (!endpoints) return null
+    if (relation.from !== undefined || relation.to !== undefined) {
+      console.warn(`[DSL] relation "${relation.id}": fields "from"/"to" are deprecated, use "source"/"target" instead.`)
+    }
+    if (relation.vectorA !== undefined || relation.vectorB !== undefined) {
+      console.warn(`[DSL] relation "${relation.id}": fields "vectorA"/"vectorB" are deprecated, use "source"/"target" instead.`)
+    }
+    if (relation.sourceId !== undefined || relation.targetId !== undefined) {
+      console.warn(`[DSL] relation "${relation.id}": fields "sourceId"/"targetId" are deprecated, use "source"/"target" instead.`)
+    }
     return {
       id: relation.id,
       type: this.mapRelationType(relation.type),

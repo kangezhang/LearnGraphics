@@ -1,0 +1,7 @@
+{
+  "version": "1.0.0",
+  "aliases": {
+    "teach.geometry.dot_projection.basic": "teach.geometry.vector_projection.basic",
+    "teach.graph.bfs.stepwise": "teach.algorithm.bfs.stepwise"
+  }
+}

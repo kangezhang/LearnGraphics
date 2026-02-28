@@ -1,0 +1,40 @@
+{
+  "version": "1.0.0",
+  "pass_threshold": {
+    "overall_min": 4.0,
+    "per_dimension_min": {
+      "accuracy": 4,
+      "clarity": 4,
+      "engagement": 3,
+      "actionability": 4,
+      "alignment": 4
+    }
+  },
+  "dimensions": [
+    {
+      "id": "accuracy",
+      "name": "Accuracy",
+      "description": "Concepts and formulas are correct and internally consistent."
+    },
+    {
+      "id": "clarity",
+      "name": "Clarity",
+      "description": "Explanations are easy to follow and free of ambiguity."
+    },
+    {
+      "id": "engagement",
+      "name": "Engagement",
+      "description": "Examples and checkpoints keep learners cognitively involved."
+    },
+    {
+      "id": "actionability",
+      "name": "Actionability",
+      "description": "Learners can perform exercises with concrete steps."
+    },
+    {
+      "id": "alignment",
+      "name": "Goal Alignment",
+      "description": "The lesson content directly supports the user goal."
+    }
+  ]
+}

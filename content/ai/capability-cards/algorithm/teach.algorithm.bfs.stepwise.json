@@ -1,0 +1,47 @@
+{
+  "capability_id": "teach.algorithm.bfs.stepwise",
+  "name": "BFS Stepwise Traversal",
+  "version": "1.0.0",
+  "domain": "algorithm",
+  "level": "beginner",
+  "inputs": [
+    "learner_level",
+    "goal",
+    "duration_min"
+  ],
+  "outputs": [
+    "lesson_script",
+    "exercise_set",
+    "dsl_patch"
+  ],
+  "dependencies": [
+    "cs.graph.node_edge_basics"
+  ],
+  "constraints": [
+    "must_track_queue_state_each_step",
+    "must_distinguish_visited_and_frontier"
+  ],
+  "quality_criteria": [
+    "state_transition_clarity",
+    "step_correctness"
+  ],
+  "template_refs": [
+    "template.lesson.step_simulation.v1"
+  ],
+  "dsl_refs": [
+    "src/dsl/examples/bfs.yaml"
+  ],
+  "failure_codes": [
+    "QUEUE_STATE_MISSING",
+    "VISITED_FRONTIER_CONFUSED"
+  ],
+  "examples": [
+    {
+      "input": {
+        "goal": "understand why BFS finds shortest path in unweighted graph"
+      },
+      "output_summary": "Uses level-by-level expansion and queue snapshots."
+    }
+  ],
+  "status": "active"
+}

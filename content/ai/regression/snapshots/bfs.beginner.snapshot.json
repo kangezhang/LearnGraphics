@@ -1,0 +1,69 @@
+{
+  "plan_id": "plan_reg_bfs_beginner",
+  "request_id": "reg_bfs_beginner",
+  "topic": "BFS 广度优先遍历",
+  "total_duration_min": 30,
+  "segments": [
+    {
+      "segment_id": "s1",
+      "title": "问题引入",
+      "duration_min": 5,
+      "capabilities": [
+        "teach.story_context.force_split"
+      ],
+      "expected_output": [
+        "lesson_script"
+      ],
+      "dependencies": []
+    },
+    {
+      "segment_id": "s2",
+      "title": "核心概念",
+      "duration_min": 9,
+      "capabilities": [
+        "teach.algorithm.bfs.stepwise"
+      ],
+      "expected_output": [
+        "lesson_script",
+        "exercise_set",
+        "dsl_patch"
+      ],
+      "dependencies": [
+        "cs.graph.node_edge_basics"
+      ]
+    },
+    {
+      "segment_id": "s3",
+      "title": "过程演示",
+      "duration_min": 9,
+      "capabilities": [
+        "teach.algorithm.dag_scheduling.intro"
+      ],
+      "expected_output": [
+        "lesson_script",
+        "exercise_set",
+        "dsl_patch"
+      ],
+      "dependencies": [
+        "cs.graph.node_edge_basics"
+      ]
+    },
+    {
+      "segment_id": "s4",
+      "title": "练习与评估",
+      "duration_min": 7,
+      "capabilities": [
+        "teach.assessment.quick_check.mcq"
+      ],
+      "expected_output": [
+        "exercise_set",
+        "assessment_rubric"
+      ],
+      "dependencies": []
+    }
+  ],
+  "quality_targets": {
+    "min_rubric_score": 4,
+    "must_pass_hard_rules": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "request_id": "reg_bfs_beginner",
+  "topic": "BFS 广度优先遍历",
+  "learner_profile": {
+    "level": "beginner",
+    "age_group": "undergraduate"
+  },
+  "goal": "理解 queue、visited、frontier 的状态变化并解释最短路径直觉",
+  "duration_min": 30,
+  "style": "步骤化+状态可视化",
+  "language": "zh-CN",
+  "must_include": [
+    "可操作练习",
+    "每步状态解释"
+  ],
+  "must_avoid": [
+    "复杂证明"
+  ],
+  "output_format": [
+    "json"
+  ]
+}
